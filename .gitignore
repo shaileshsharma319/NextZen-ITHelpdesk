@@ -1,16 +1,83 @@
+# Helpdesk secrets and runtime files
 .env
 .env.*
 !.env.example
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
 instance/
 app/static/uploads/
 exports/
 *.log
 *.sqlite
 *.db
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*.py[codz]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# Virtual environments
 venv/
 .venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Build and packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Test and coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+nosetests.xml
+coverage.xml
+*.cover
+*.py.cover
+.hypothesis/
+cover/
+
+# Flask and web assets
+.webassets-cache
+
+# Editor and local tool files
+.ropeproject
+.spyderproject
+.spyproject
+.pdm-python
+.pdm-build/
+.pixi/
+__pypackages__/
+tempCodeRunnerFile.py
+.pypirc
+
+# Optional IDE folders
+# .idea/
+# .vscode/
