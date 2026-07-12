@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+{% block title %}{{ ticket.ticket_number or ('#' ~ ticket.id) }} - {{ ticket.title }}{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex items-start justify-between mb-4">
+    <div>
+        <div class="flex items-center gap-2 flex-wrap mb-1">
+            <a href="{{ url_for('tickets.list') }}" class="text-gray-400 hover:text-gray-600 text-sm"><i class="fas fa-arrow-left"></i></a>
+            <span class="font-mono font-bold text-blue-600 text-lg">{{ ticket.ticket_number or ('#' ~ ticket.id) }}</span>
+            <span class="badge badge-type-{{ ticket.ticket_type }}">{{ ticket.ticket_type.title() }}</span>
+            <span class="badge badge-{{ ticket.priority }}">{{ ticket.priority.title() }}</span>
+            <span class="badge badge-status-{{ ticket.status }}">{{ ticket.status.replace('_',' ').title() }}</span>
+            {% if ticket.is_overdue %}
+            <span class="text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded-full font-medium"><i class="fas fa-exclamation-circle mr-1"></i>SLA Overdue</span>
+            {% endif %}
+        </div>
+        <h2 class="text-xl font-bold text-gray-800">{{ ticket.title }}</h2>
+        <p class="text-gray-500 text-xs mt-0.5">
+            Submitted by <span class="font-medium text-gray-700">{{ ticket.creator.name }}</span>
+            on {{ ticket.created_at.strftime('%d %b %Y %H:%M') }}
+            &bull; Ownership <span class="font-medium text-gray-700">{{ ticket.assignee.name if ticket.assignee else 'Unassigned' }}{% if ticket.assignee %} <span class="text-gray-400">({{ ticket.assignee.role_label }})</span>{% endif %}</span>
+        </p>
+    </div>
+    <div class="flex gap-2 flex-shrink-0">
+        <a href="{{ url_for('tickets.add_reply', ticket_id=ticket.id) }}"
+            class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1">
+            <i class="fas fa-reply"></i> Reply
+        </a>
+        {% if current_user.can_manage_helpdesk or (ticket.user_id == current_user.id and ticket.status not in ('resolved', 'closed')) %}
+            <a href="{{ url_for('tickets.edit', ticket_id=ticket.id) }}"
+                class="bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+        {% endif %}
+        {% if current_user.can_manage_system %}
+        <form method="POST" action="{{ url_for('tickets.delete', ticket_id=ticket.id) }}" onsubmit="return confirm('Delete this ticket?')">
+            <button class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2 rounded-lg flex items-center gap-1">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 70/30 Layout -->
+<div class="flex gap-5 items-start">
+
+    <!-- LEFT: Conversation + Reply (70%) -->
+    <div class="flex-1 min-w-0 space-y-4">
+
+        <!-- Original Description -->
+        <div class="bg-white rounded-xl shadow">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
+                <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {{ ticket.creator.name[0].upper() }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <span class="font-medium text-gray-800 text-sm">{{ ticket.creator.name }}</span>
+                    <span class="text-xs text-gray-400 ml-2">{{ ticket.created_at.strftime('%d %b %Y %H:%M') }}</span>
+                    <span class="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Original</span>
+                </div>
+            </div>
+            <div class="px-5 py-4 text-sm text-gray-700">{{ ticket.description | email_content }}</div>
+        </div>
+
+        <!-- Replies Thread -->
+        {% set replies = ticket.replies | sort(attribute='created_at') %}
+        {% for reply in replies %}
+        {% if reply.is_public or current_user.can_manage_helpdesk %}
+        <div class="bg-white rounded-xl shadow {% if not reply.is_public %}border-l-4 border-yellow-400{% endif %}">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0
+                    {% if reply.author.can_manage_helpdesk %}bg-green-600{% else %}bg-blue-500{% endif %}">
+                    {{ reply.author.name[0].upper() }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <span class="font-medium text-gray-800 text-sm">{{ reply.author.name }}</span>
+                    <span class="text-xs text-gray-400 ml-2">{{ reply.created_at.strftime('%d %b %Y %H:%M') }}</span>
+                    {% if reply.reply_type == 'internal' %}
+                    <span class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded"><i class="fas fa-lock text-xs mr-1"></i>Internal Note</span>
+                    {% elif reply.reply_type == 'email' %}
+                    <span class="ml-2 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded"><i class="fas fa-envelope text-xs mr-1"></i>Email Reply</span>
+                    {% else %}
+                    <span class="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded"><i class="fas fa-globe text-xs mr-1"></i>Public</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="px-5 py-4 text-sm text-gray-700 prose max-w-none">{{ reply.message | email_content }}</div>
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        <!-- Reply Editor -->
+        {% if ticket.status not in ('closed',) %}
+        <div class="bg-white rounded-xl shadow" id="reply-section">
+            <div class="px-5 py-3 border-b border-gray-100">
+                <h4 class="font-semibold text-gray-800 text-sm"><i class="fas fa-reply text-blue-500 mr-1"></i> Reply</h4>
+            </div>
+            <form method="POST" action="{{ url_for('tickets.add_reply', ticket_id=ticket.id) }}" id="replyForm" enctype="multipart/form-data">
+                <input type="hidden" name="return_to" value="detail">
+                <div class="px-5 pt-4 space-y-3">
+
+                    <!-- Row 1: Reply Type + Status + Assign -->
+                    <div class="flex flex-wrap gap-3">
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs text-gray-500 mb-1">Reply Type</label>
+                            <select name="reply_type" id="replyType"
+                                class="form-input text-sm py-1.5">
+                                <option value="public">💬 Public Reply</option>
+                                {% if current_user.can_manage_helpdesk %}<option value="internal">Internal Note</option>{% endif %}
+                                <option value="email">📧 Email Reply</option>
+                            </select>
+                        </div>
+                        {% if current_user.can_manage_helpdesk %}
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs text-gray-500 mb-1">Status</label>
+                            <select name="status" class="form-input text-sm py-1.5">
+                                {% for s in ['open','in_progress','pending','resolved','closed'] %}
+                                <option value="{{ s }}" {% if ticket.status == s %}selected{% endif %}>{{ s.replace('_',' ').title() }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs text-gray-500 mb-1">Ownership</label>
+                            <select name="assigned_to" class="form-input text-sm py-1.5">
+                                <option value="">Unassigned</option>
+                                {% for u in staff_users %}
+                                <option value="{{ u.id }}" {% if ticket.assigned_to == u.id %}selected{% endif %}>{{ u.name }} - {{ u.role_label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- To field (email mode) -->
+                    <div id="emailFields" class="hidden space-y-2">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">To</label>
+                            <input type="text" class="form-input text-sm py-1.5" value="{{ ticket.email_from or ticket.creator.email or '' }}" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Subject</label>
+                            <input type="text" name="email_subject" class="form-input text-sm py-1.5"
+                                value="Re: {{ ticket.title }}">
+                        </div>
+                    </div>
+
+                    <!-- Rich Text Editor -->
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Description</label>
+                        <div class="rte-wrapper" id="replyEditorWrap">
+                            <div class="rte-toolbar" aria-label="Rich text editor toolbar">
+                                <select data-command="formatBlock" title="Heading">
+                                    <option value="p">Paragraph</option>
+                                    <option value="h1">Heading 1</option>
+                                    <option value="h2">Heading 2</option>
+                                    <option value="h3">Heading 3</option>
+                                </select>
+                                <select data-command="fontSizePx" title="Font size">
+                                    <option value="">Size</option>
+                                    <option value="12px">Small</option>
+                                    <option value="14px">Normal</option>
+                                    <option value="18px">Large</option>
+                                    <option value="24px">Title</option>
+                                </select>
+                                <span class="rte-divider"></span>
+                                <button type="button" data-command="undo" title="Undo"><i class="fas fa-rotate-left"></i></button>
+                                <button type="button" data-command="redo" title="Redo"><i class="fas fa-rotate-right"></i></button>
+                                <span class="rte-divider"></span>
+                                <button type="button" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+                                <button type="button" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+                                <button type="button" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+                                <button type="button" data-command="strikeThrough" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+                                <span class="rte-divider"></span>
+                                <button type="button" data-command="insertUnorderedList" title="Bullet list"><i class="fas fa-list-ul"></i></button>
+                                <button type="button" data-command="insertOrderedList" title="Numbered list"><i class="fas fa-list-ol"></i></button>
+                                <button type="button" data-command="checklist" title="Checklist"><i class="fas fa-list-check"></i></button>
+                                <button type="button" data-command="indent" title="Indent"><i class="fas fa-indent"></i></button>
+                                <button type="button" data-command="outdent" title="Outdent"><i class="fas fa-outdent"></i></button>
+                                <span class="rte-divider"></span>
+                                <button type="button" data-command="formatBlock" data-value="blockquote" title="Quote"><i class="fas fa-quote-right"></i></button>
+                                <button type="button" data-command="codeBlock" title="Code block"><i class="fas fa-code"></i></button>
+                                <button type="button" data-command="table" title="Insert table"><i class="fas fa-table"></i></button>
+                                <button type="button" data-command="insertHorizontalRule" title="Divider"><i class="fas fa-minus"></i></button>
+                                <span class="rte-divider"></span>
+                                <button type="button" data-command="createLink" title="Link"><i class="fas fa-link"></i></button>
+                                <button type="button" data-command="unlink" title="Remove link"><i class="fas fa-unlink"></i></button>
+                                <button type="button" data-command="image" title="Insert image by URL"><i class="fas fa-image"></i></button>
+                                <span class="rte-divider"></span>
+                                <button type="button" data-command="plainPaste" title="Paste as plain text"><i class="fas fa-clipboard"></i></button>
+                                <button type="button" data-command="removeFormat" title="Clear formatting"><i class="fas fa-eraser"></i></button>
+                            </div>
+                            <div id="replyEditor" class="rte-body" contenteditable="true" data-placeholder="Write a clear update for the requester or add an internal note..."></div>
+                            <div class="rte-statusbar"><span id="replyWordCount">0 words</span><span>Rich text enabled</span></div>
+                        </div>
+                        <input type="hidden" name="message" id="replyMessage">
+                    </div>
+
+                    <!-- Attachment -->
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Attachments</label>
+                        <div class="attachment-drop" id="attachmentDrop">
+                            <input type="file" name="attachments" id="attachments" multiple class="hidden">
+                            <button type="button" id="attachmentButton" class="border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-2 rounded-lg inline-flex items-center gap-2">
+                                <i class="fas fa-paperclip"></i> Add Attachments
+                            </button>
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-700">Drop files here or browse</p>
+                                <p class="text-xs text-gray-500">PDF, images, Office files, CSV, ZIP, TXT and LOG up to 21 MB.</p>
+                            </div>
+                        </div>
+                        <div id="attachmentList" class="flex flex-wrap gap-2 mt-2"></div>
+                    </div>
+
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="px-5 py-4 border-t border-gray-100 flex flex-wrap gap-2">
+                    <button type="submit" name="action" value="reply"
+                        class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-1">
+                        <i class="fas fa-paper-plane"></i> Send Reply
+                    </button>
+                    {% if current_user.can_manage_helpdesk %}
+                        <button type="submit" name="action" value="reply"
+                            class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-1" id="internalSubmit">
+                            <i class="fas fa-lock"></i> Add Internal Note
+                        </button>
+                    {% endif %}
+                    {% if current_user.can_manage_helpdesk %}
+                    <button type="submit" name="action" value="resolve"
+                        class="bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-1">
+                        <i class="fas fa-check-circle"></i> Resolve Ticket
+                    </button>
+                    <button type="submit" name="action" value="close"
+                        class="bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-1">
+                        <i class="fas fa-times-circle"></i> Close Ticket
+                    </button>
+                    {% endif %}
+                    <a href="{{ url_for('tickets.list') }}"
+                        class="border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-1">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+        {% else %}
+        <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center text-gray-500 text-sm">
+            <i class="fas fa-lock mr-1"></i> This ticket is closed.{% if current_user.can_manage_helpdesk %} <a href="{{ url_for('tickets.edit', ticket_id=ticket.id) }}" class="text-blue-600 hover:underline">Re-open via Edit</a>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- RIGHT: Ticket Info + Activity (30%) -->
+    <div class="w-72 flex-shrink-0 space-y-4">
+
+        <!-- Quick Actions -->
+        {% if ticket.status not in ('resolved','closed') and current_user.can_manage_helpdesk %}
+        <div class="bg-white rounded-xl shadow p-4">
+            <h4 class="font-semibold text-gray-700 text-sm mb-3">Quick Actions</h4>
+            <form method="POST" action="{{ url_for('tickets.quick_action', ticket_id=ticket.id) }}" class="flex gap-2">
+                <button name="action" value="resolve" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs py-2 rounded-lg">
+                    <i class="fas fa-check mr-1"></i> Resolve
+                </button>
+                <button name="action" value="close" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white text-xs py-2 rounded-lg">
+                    <i class="fas fa-times mr-1"></i> Close
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Ticket Details -->
+        <div class="bg-white rounded-xl shadow p-4">
+            <h4 class="font-semibold text-gray-700 text-sm mb-3"><i class="fas fa-info-circle text-blue-400 mr-1"></i> Ticket Info</h4>
+            <dl class="space-y-2 text-xs">
+                <div class="flex justify-between"><dt class="text-gray-500">Ticket No</dt><dd class="font-mono font-bold text-gray-800">{{ ticket.ticket_number or ('#' ~ ticket.id) }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Status</dt><dd><span class="badge badge-status-{{ ticket.status }}">{{ ticket.status.replace('_',' ').title() }}</span></dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Priority</dt><dd><span class="badge badge-{{ ticket.priority }}">{{ ticket.priority.title() }}</span></dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Type</dt><dd><span class="badge badge-type-{{ ticket.ticket_type }}">{{ ticket.ticket_type.title() }}</span></dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Category</dt><dd class="text-gray-700">{{ ticket.category or '—' }}</dd></div>
+                {% if ticket.sub_category %}
+                <div class="flex justify-between"><dt class="text-gray-500">Sub Category</dt><dd class="text-gray-700 text-right">{{ ticket.sub_category }}</dd></div>
+                {% endif %}
+                {% if ticket.tags %}
+                <div>
+                    <dt class="text-gray-500 mb-1">Tags</dt>
+                    <dd class="flex flex-wrap gap-1.5">
+                        {% for item in ticket.tags.split(',') %}
+                        {% set clean_tag = item.strip() %}
+                        {% if clean_tag %}<a href="{{ url_for('tickets.list', tag=clean_tag) }}" class="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full hover:bg-indigo-100">#{{ clean_tag }}</a>{% endif %}
+                        {% endfor %}
+                    </dd>
+                </div>
+                {% endif %}
+                {% set src = ticket.source or 'manual' %}
+                {% set lbl, icon, cls = source_labels.get(src, ('Manual','fa-pen','badge-source-manual')) %}
+                <div class="flex justify-between"><dt class="text-gray-500">Source</dt><dd><span class="badge {{ cls }} flex items-center gap-1"><i class="fas {{ icon }}"></i> {{ lbl }}</span></dd></div>
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">SLA</dt>
+                    <dd class="{% if ticket.is_overdue %}text-red-600 font-medium{% else %}text-green-600{% endif %}">
+                        {% if ticket.is_overdue %}<i class="fas fa-exclamation-triangle mr-1"></i>Overdue{% else %}<i class="fas fa-check-circle mr-1"></i>Within SLA{% endif %}
+                    </dd>
+                </div>
+                <div class="flex justify-between"><dt class="text-gray-500">SLA Due</dt><dd class="text-gray-700">{{ ticket.sla_due.strftime('%d %b %H:%M') if ticket.sla_due else '—' }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-gray-500">Ownership</dt><dd class="text-gray-700 text-right">{{ ticket.assignee.name if ticket.assignee else 'Unassigned' }}{% if ticket.assignee %}<span class="block text-xs text-gray-400">{{ ticket.assignee.role_label }}</span>{% endif %}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Created</dt><dd class="text-gray-700">{{ ticket.created_at.strftime('%d %b %Y') }}</dd></div>
+                {% if ticket.resolved_at %}
+                <div class="flex justify-between"><dt class="text-gray-500">Resolved</dt><dd class="text-green-600">{{ ticket.resolved_at.strftime('%d %b %Y') }}</dd></div>
+                {% endif %}
+            </dl>
+        </div>
+
+        <!-- Linked Asset -->
+        {% if ticket.asset %}
+        <div class="bg-white rounded-xl shadow p-4">
+            <h4 class="font-semibold text-gray-700 text-sm mb-3"><i class="fas fa-laptop text-gray-400 mr-1"></i> Linked Asset</h4>
+            <dl class="space-y-1.5 text-xs">
+                <div class="flex justify-between"><dt class="text-gray-500">Asset</dt><dd class="font-medium text-gray-800">{{ ticket.asset.name }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Tag</dt><dd class="text-gray-700">{{ ticket.asset.asset_tag }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Type</dt><dd class="text-gray-700">{{ ticket.asset.asset_type.title() }}</dd></div>
+            </dl>
+            <a href="{{ url_for('assets.detail', asset_id=ticket.asset.id) }}" class="text-blue-600 hover:underline text-xs mt-2 block">View Asset →</a>
+        </div>
+        {% endif %}
+
+        <!-- Email Details -->
+        {% if ticket.source == 'email' and (ticket.email_subject or ticket.email_cc) %}
+        <div class="bg-white rounded-xl shadow p-4">
+            <h4 class="font-semibold text-gray-700 text-sm mb-3"><i class="fas fa-envelope text-amber-400 mr-1"></i> Email Details</h4>
+            <dl class="space-y-1.5 text-xs">
+                {% if ticket.email_subject %}<div><dt class="text-gray-500">Subject</dt><dd class="text-gray-700 mt-0.5">{{ ticket.email_subject }}</dd></div>{% endif %}
+                {% if ticket.email_from %}<div><dt class="text-gray-500">From</dt><dd class="text-gray-700 mt-0.5 break-all">{{ ticket.email_from }}</dd></div>{% endif %}
+                {% if ticket.email_to %}<div><dt class="text-gray-500">To</dt><dd class="text-gray-700 mt-0.5 break-all">{{ ticket.email_to }}</dd></div>{% endif %}
+                {% if ticket.email_cc %}<div><dt class="text-gray-500">CC</dt><dd class="text-gray-700 mt-0.5 break-all">{{ ticket.email_cc }}</dd></div>{% endif %}
+            </dl>
+        </div>
+        {% endif %}
+
+        <!-- Activity Log -->
+        <div class="bg-white rounded-xl shadow p-4">
+            <h4 class="font-semibold text-gray-700 text-sm mb-3"><i class="fas fa-history text-gray-400 mr-1"></i> Activity Log</h4>
+            {% set activities = ticket.activities %}
+            {% if activities %}
+            <ul class="space-y-2">
+                {% for act in activities %}
+                <li class="flex gap-2 text-xs">
+                    <span class="text-gray-400 flex-shrink-0 mt-0.5">{{ act.created_at.strftime('%d %b %H:%M') }}</span>
+                    <span class="text-gray-600">{{ act.description }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-gray-400 text-xs">No activity yet.</p>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<script>
+window.HELP_DESK_REQUESTER_NAME = {{ ticket.creator.name|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/ticket_reply.js') }}"></script>
+{% endblock %}

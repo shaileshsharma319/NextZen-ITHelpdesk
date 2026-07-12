@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}Reimbursements{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">HRMS</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">Reimbursements</h1>
+            <p class="text-sm text-gray-500 mt-1">Submit employee expenses, upload receipts, and track approval/payment status.</p>
+        </div>
+        <a href="{{ url_for('hrms.dashboard') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-arrow-left"></i> HR Dashboard</a>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {% set cards = [
+            ('Pending', summary.pending, 'fa-hourglass-half', 'amber'),
+            ('Approved', summary.approved, 'fa-circle-check', 'emerald'),
+            ('Paid', summary.paid, 'fa-wallet', 'blue'),
+            ('Rejected', summary.rejected, 'fa-circle-xmark', 'red'),
+        ] %}
+        {% for label, value, icon, tone in cards %}
+        <div class="ticket-stat-card ticket-stat-{{ tone }}">
+            <div><p class="text-xs text-gray-500 font-medium">{{ label }}</p><p class="text-2xl font-bold text-gray-900 mt-0.5">{{ value }}</p></div>
+            <span><i class="fas {{ icon }}"></i></span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-6">
+        <form method="POST" enctype="multipart/form-data" class="bg-white rounded-2xl shadow p-5 space-y-4">
+            <div>
+                <h2 class="font-semibold text-gray-800">New Claim</h2>
+                <p class="text-xs text-gray-400 mt-1">Attach receipt PDF/image when available.</p>
+            </div>
+            {% if current_user.can_manage_hrms %}
+            <div>
+                <label class="form-label">Employee</label>
+                <select name="user_id" class="form-input" required>
+                    {% for employee in employees %}<option value="{{ employee.id }}" {% if employee.id == current_user.id %}selected{% endif %}>{{ employee.name }}</option>{% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="form-label">Expense Date</label><input type="date" name="expense_date" value="{{ today.isoformat() }}" class="form-input" required></div>
+                <div>
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-input">
+                        {% for value, label in [('travel','Travel'),('food','Food'),('fuel','Fuel'),('internet','Internet'),('mobile','Mobile'),('software','Software'),('office_supplies','Office Supplies'),('training','Training'),('other','Other')] %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-[1fr_90px] gap-3">
+                <div><label class="form-label">Amount</label><input type="number" name="amount" min="0.01" step="0.01" class="form-input" placeholder="0.00" required></div>
+                <div><label class="form-label">Currency</label><input type="text" name="currency" value="INR" class="form-input"></div>
+            </div>
+            <div><label class="form-label">Merchant / Vendor</label><input type="text" name="merchant" class="form-input" placeholder="Uber, Amazon, Hotel..."></div>
+            <div>
+                <label class="form-label">Payment Method</label>
+                <select name="payment_method" class="form-input">
+                    {% for value, label in [('personal_card','Personal Card'),('cash','Cash'),('upi','UPI'),('company_card','Company Card'),('bank_transfer','Bank Transfer')] %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div><label class="form-label">Description</label><textarea name="description" rows="4" class="form-input" placeholder="Purpose of expense"></textarea></div>
+            <div>
+                <label class="form-label">Receipt</label>
+                <label class="border border-dashed border-gray-300 rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:bg-blue-50/40">
+                    <i class="fas fa-cloud-arrow-up text-blue-500 text-xl"></i>
+                    <span class="text-sm text-gray-600">Upload bill, receipt, PDF, or image</span>
+                    <input type="file" name="receipt" class="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx">
+                </label>
+                <p class="text-xs text-gray-400 mt-1">Max upload follows project limit: 21 MB.</p>
+            </div>
+            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg"><i class="fas fa-paper-plane mr-1"></i> Submit Claim</button>
+        </form>
+
+        <div class="space-y-4">
+            <div class="ticket-filter-panel">
+                <form method="GET" class="grid grid-cols-1 md:grid-cols-[1fr_160px_170px_auto] gap-3 items-end">
+                    {% if current_user.can_manage_hrms %}
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Employee</label>
+                        <select name="employee_id" class="filter-select w-full">
+                            <option value="">All Employees</option>
+                            {% for employee in employees %}<option value="{{ employee.id }}" {% if employee_id == employee.id %}selected{% endif %}>{{ employee.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Status</label>
+                        <select name="status" class="filter-select w-full">
+                            <option value="">All Status</option>
+                            {% for value in ['pending','approved','paid','rejected'] %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value.title() }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Category</label>
+                        <select name="category" class="filter-select w-full">
+                            <option value="">All Categories</option>
+                            {% for value, label in [('travel','Travel'),('food','Food'),('fuel','Fuel'),('internet','Internet'),('mobile','Mobile'),('software','Software'),('office_supplies','Office Supplies'),('training','Training'),('other','Other')] %}<option value="{{ value }}" {% if category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <button class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-filter"></i> Apply</button>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100">
+                    <h2 class="font-semibold text-gray-800">Claims</h2>
+                    <p class="text-xs text-gray-400 mt-1">Latest 100 matching reimbursement records.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                            <tr>
+                                <th class="px-4 py-3 text-left">Claim</th>
+                                <th class="px-4 py-3 text-left">Employee</th>
+                                <th class="px-4 py-3 text-left">Amount</th>
+                                <th class="px-4 py-3 text-left">Status</th>
+                                <th class="px-4 py-3 text-left">Receipt</th>
+                                {% if current_user.can_manage_hrms %}<th class="px-4 py-3 text-left">Action</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for claim in claims %}
+                            <tr>
+                                <td class="px-4 py-3 min-w-[220px]">
+                                    <p class="font-semibold text-gray-900">{{ claim.category.replace('_',' ').title() }}</p>
+                                    <p class="text-xs text-gray-500">{{ claim.expense_date.strftime('%d %b %Y') }}{% if claim.merchant %} &bull; {{ claim.merchant }}{% endif %}</p>
+                                    {% if claim.description %}<p class="text-xs text-gray-400 mt-1">{{ claim.description }}</p>{% endif %}
+                                </td>
+                                <td class="px-4 py-3 font-medium text-gray-800">{{ claim.employee.name }}</td>
+                                <td class="px-4 py-3 font-semibold text-gray-900">{{ claim.currency }} {{ '%.2f'|format(claim.amount) }}</td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-1 rounded-full text-xs font-semibold {% if claim.status == 'approved' %}bg-green-100 text-green-700{% elif claim.status == 'paid' %}bg-blue-100 text-blue-700{% elif claim.status == 'rejected' %}bg-red-100 text-red-700{% else %}bg-amber-100 text-amber-700{% endif %}">{{ claim.status.title() }}</span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    {% if claim.receipt_filename %}
+                                    <a href="{{ url_for('hrms.reimbursement_receipt', claim_id=claim.id) }}" class="text-blue-600 hover:text-blue-700 font-medium"><i class="fas fa-paperclip mr-1"></i> Download</a>
+                                    {% else %}
+                                    <span class="text-gray-400">No receipt</span>
+                                    {% endif %}
+                                </td>
+                                {% if current_user.can_manage_hrms %}
+                                <td class="px-4 py-3 min-w-[240px]">
+                                    <form method="POST" action="{{ url_for('hrms.reimbursement_decision', claim_id=claim.id) }}" class="flex flex-wrap gap-2">
+                                        <input type="text" name="decision_note" class="filter-select flex-1 min-w-[120px]" placeholder="Note">
+                                        <button name="action" value="approved" class="bg-green-50 hover:bg-green-100 text-green-700 text-xs font-semibold px-3 py-2 rounded-lg">Approve</button>
+                                        <button name="action" value="paid" class="bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-2 rounded-lg">Paid</button>
+                                        <button name="action" value="rejected" class="bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold px-3 py-2 rounded-lg">Reject</button>
+                                    </form>
+                                    {% if claim.decision_note %}<p class="text-xs text-gray-400 mt-2">Note: {{ claim.decision_note }}</p>{% endif %}
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="{% if current_user.can_manage_hrms %}6{% else %}5{% endif %}" class="px-4 py-10 text-center text-gray-400">No reimbursement claims.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,335 @@
+{% extends 'base.html' %}
+{% block title %}Edit Software - IT HelpDesk{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-4">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">Edit: {{ sw.name }}</h2>
+        <p class="text-gray-500 text-sm mt-0.5">Update software details and manage asset installations.</p>
+    </div>
+    <a href="{{ url_for('software.list') }}" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+</div>
+
+<form method="POST" id="sw_form">
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-4" style="height:calc(100vh - 160px)">
+
+    <!-- LEFT: Software Form -->
+    <div class="xl:col-span-1 overflow-y-auto">
+        <div class="bg-white rounded-xl shadow p-5">
+            <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <i class="fas fa-compact-disc text-indigo-500"></i> Software Information
+            </h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="form-label">Software Name <span class="text-red-500">*</span></label>
+                    <div class="relative" id="sw_dropdown_wrap">
+                        <input type="text" id="sw_search" autocomplete="off"
+                            class="form-input pr-8" placeholder="Type to search or create new..."
+                            oninput="filterSwList()" onfocus="openSwList()"
+                            value="{{ sw.name }}">
+                        <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                        <input type="hidden" name="name" id="sw_name_val" value="{{ sw.name }}">
+                        <ul id="sw_list"
+                            class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto hidden text-sm">
+                            <li id="sw_create_new"
+                                class="hidden px-3 py-2 cursor-pointer hover:bg-green-50 border-b border-gray-100 flex items-center gap-2 text-green-700 font-medium"
+                                onclick="createNewSw()">
+                                <i class="fas fa-plus-circle text-green-500"></i>
+                                <span>Create new: "<span id="sw_create_label"></span>"</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">Version</label>
+                        <input type="text" name="version" id="sw_version" class="form-input" value="{{ sw.version or '' }}">
+                    </div>
+                    <div>
+                        <label class="form-label">Vendor</label>
+                        <input type="text" name="vendor" id="sw_vendor" class="form-input" value="{{ sw.vendor or '' }}">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">Category <span class="text-red-500">*</span></label>
+                        <select name="category" required class="form-input">
+                            {% for c in ['os','office','security','development','design','communication','utility','other'] %}
+                            <option value="{{ c }}" {% if sw.category == c %}selected{% endif %}>{{ c.replace('_',' ').title() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">License Type <span class="text-red-500">*</span></label>
+                        <select name="license_type" required class="form-input">
+                            {% for l in ['free','open_source','commercial','subscription','trial'] %}
+                            <option value="{{ l }}" {% if sw.license_type == l %}selected{% endif %}>{{ l.replace('_',' ').title() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">License Edition</label>
+                        <select name="license_edition" class="form-input">
+                            <option value="" {% if not sw.license_edition %}selected{% endif %}>— None —</option>
+                            <option value="msdn"    {% if sw.license_edition == 'msdn'    %}selected{% endif %}>MSDN</option>
+                            <option value="oem_pro" {% if sw.license_edition == 'oem_pro' %}selected{% endif %}>OEM Pro</option>
+                            <option value="oem_sl"  {% if sw.license_edition == 'oem_sl'  %}selected{% endif %}>OEM Single Language</option>
+                            <option value="retail"  {% if sw.license_edition == 'retail'  %}selected{% endif %}>Retail</option>
+                            <option value="volume"  {% if sw.license_edition == 'volume'  %}selected{% endif %}>Volume License</option>
+                            <option value="other"   {% if sw.license_edition == 'other'   %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">License Seats</label>
+                        <input type="number" name="license_seats" id="license_seats" class="form-input" value="{{ sw.seats }}" min="1">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">License Key</label>
+                        <input type="text" name="license_key" class="form-input font-mono text-xs" value="{{ sw.license_key or '' }}" placeholder="XXXXX-XXXXX-XXXXX">
+                    </div>
+                    <div>
+                        <label class="form-label">Expiry Date</label>
+                        <input type="date" name="license_expiry" class="form-input" value="{{ sw.license_expiry.strftime('%Y-%m-%d') if sw.license_expiry else '' }}">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" rows="2" class="form-input">{{ sw.notes or '' }}</textarea>
+                </div>
+
+                <div class="flex gap-2 pt-1">
+                    <button type="submit"
+                        class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 rounded-lg text-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <a href="{{ url_for('software.list') }}" class="border border-gray-300 text-gray-600 px-4 py-2.5 rounded-lg text-sm hover:bg-gray-50">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Asset Table always visible -->
+    <div class="xl:col-span-2 flex flex-col min-h-0">
+        <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col h-full">
+            <div class="px-5 py-3 border-b flex items-center justify-between flex-shrink-0">
+                <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-server text-blue-500"></i> Assets
+                    <span id="selected_count" class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{{ sw.installed_count }} selected</span>
+                </h3>
+                <label class="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
+                    <input type="checkbox" id="chk_all" class="w-4 h-4 rounded text-blue-600"> Select All
+                </label>
+            </div>
+            <div class="px-4 py-2 border-b bg-gray-50 flex flex-wrap gap-2 flex-shrink-0">
+                <input type="text" id="asset_search" placeholder="Search user, hostname, IP..."
+                    class="form-input text-xs py-1.5 flex-1 min-w-40" oninput="filterAssets()">
+                <select id="f_type" class="filter-select text-xs py-1.5" onchange="filterAssets()">
+                    <option value="">All Types</option>
+                    <option value="computer">Computer</option>
+                    <option value="server">Server</option>
+                    <option value="monitor">Monitor</option>
+                    <option value="printer">Printer</option>
+                    <option value="network">Network</option>
+                    <option value="other">Other</option>
+                </select>
+                <select id="f_status" class="filter-select text-xs py-1.5" onchange="filterAssets()">
+                    <option value="">All Status</option>
+                    <option value="available">Available</option>
+                    <option value="in_use">In Use</option>
+                    <option value="under_repair">Under Repair</option>
+                    <option value="retired">Retired</option>
+                </select>
+            </div>
+            <div class="overflow-auto flex-1">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs sticky top-0">
+                        <tr>
+                            <th class="px-3 py-2.5 text-center w-10"></th>
+                            <th class="px-3 py-2.5 text-left">User</th>
+                            <th class="px-3 py-2.5 text-left">Asset / Tag</th>
+                            <th class="px-3 py-2.5 text-left">Hostname</th>
+                            <th class="px-3 py-2.5 text-left">IP Address</th>
+                            <th class="px-3 py-2.5 text-left">Type</th>
+                            <th class="px-3 py-2.5 text-left">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="asset_tbody" class="divide-y divide-gray-100">
+                        <tr><td colspan="7" class="px-6 py-10 text-center text-gray-400">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Loading assets...
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="px-5 py-3 border-t bg-gray-50 flex-shrink-0">
+                <span class="text-sm text-gray-500" id="done_count">{{ sw.installed_count }} asset{{ 's' if sw.installed_count != 1 else '' }} selected</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+</form>
+
+<script>
+const swData = [
+{% for s in all_software %}
+  { name: {{ s.name|tojson }}, version: {{ (s.version or '')|tojson }}, vendor: {{ (s.vendor or '')|tojson }}, category: {{ s.category|tojson }}, license: {{ s.license_type|tojson }}, edition: {{ (s.license_edition or '')|tojson }} },
+{% endfor %}
+];
+const catColors = { os:'bg-blue-100 text-blue-600', development:'bg-purple-100 text-purple-600', office:'bg-green-100 text-green-600', security:'bg-red-100 text-red-600', utility:'bg-yellow-100 text-yellow-600' };
+(function buildSwItems() {
+    const ul = document.getElementById('sw_list');
+    swData.forEach(sw => {
+        const li = document.createElement('li');
+        li.className = 'sw-option px-3 py-2 hover:bg-blue-50 cursor-pointer flex items-center justify-between';
+        Object.assign(li.dataset, { name: sw.name, version: sw.version, vendor: sw.vendor, category: sw.category, license: sw.license, edition: sw.edition });
+        li.onclick = () => selectSw(li);
+        const color = catColors[sw.category] || 'bg-gray-100 text-gray-500';
+        li.innerHTML = `<span><span class="font-medium text-gray-800">${sw.name}</span>${sw.version ? `<span class="text-gray-400 ml-1 text-xs">${sw.version}</span>` : ''}</span><span class="text-xs px-1.5 py-0.5 rounded ${color}">${sw.category}</span>`;
+        ul.appendChild(li);
+    });
+})();
+function openSwList() {
+    if (!document.getElementById('sw_search').value.trim()) {
+        document.querySelectorAll('.sw-option').forEach(li => li.style.display = '');
+        document.getElementById('sw_create_new').classList.add('hidden');
+    }
+    document.getElementById('sw_list').classList.remove('hidden');
+}
+function filterSwList() {
+    const q = document.getElementById('sw_search').value.trim().toLowerCase();
+    document.getElementById('sw_name_val').value = '';
+    let visible = 0;
+    document.querySelectorAll('.sw-option').forEach(li => {
+        const match = !q || li.dataset.name.toLowerCase().includes(q) || li.dataset.version.toLowerCase().includes(q) || li.dataset.vendor.toLowerCase().includes(q);
+        li.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    const createEl = document.getElementById('sw_create_new');
+    if (q && visible === 0) {
+        document.getElementById('sw_create_label').textContent = document.getElementById('sw_search').value.trim();
+        createEl.classList.remove('hidden');
+    } else {
+        createEl.classList.add('hidden');
+    }
+    document.getElementById('sw_list').classList.remove('hidden');
+}
+function selectSw(li) {
+    document.getElementById('sw_search').value   = li.dataset.name;
+    document.getElementById('sw_name_val').value = li.dataset.name;
+    document.getElementById('sw_version').value  = li.dataset.version;
+    document.getElementById('sw_vendor').value   = li.dataset.vendor;
+    document.querySelector('[name=category]').value       = li.dataset.category;
+    document.querySelector('[name=license_type]').value   = li.dataset.license;
+    document.querySelector('[name=license_edition]').value = li.dataset.edition || '';
+    document.getElementById('sw_list').classList.add('hidden');
+}
+function createNewSw() {
+    const q = document.getElementById('sw_search').value.trim();
+    document.getElementById('sw_name_val').value = q;
+    document.getElementById('sw_list').classList.add('hidden');
+}
+document.addEventListener('click', e => {
+    if (!document.getElementById('sw_dropdown_wrap').contains(e.target)) {
+        document.getElementById('sw_list').classList.add('hidden');
+        if (!document.getElementById('sw_name_val').value)
+            document.getElementById('sw_search').value = '';
+    }
+});
+
+const installedIds = new Set({{ installed_asset_ids | list | tojson }});
+const statusBadge = {
+    available:    'bg-green-100 text-green-700',
+    in_use:       'bg-blue-100 text-blue-700',
+    under_repair: 'bg-yellow-100 text-yellow-700',
+    retired:      'bg-gray-100 text-gray-500',
+};
+
+function buildRow(a, checked = false) {
+    const tr = document.createElement('tr');
+    tr.className = `cursor-pointer asset-row hover:bg-blue-50 ${checked ? 'bg-blue-50' : ''}`;
+    tr.dataset.search = `${a.user_name} ${a.name} ${a.hostname} ${a.ip_address} ${a.brand} ${a.model}`.toLowerCase();
+    tr.dataset.type   = a.asset_type;
+    tr.dataset.status = a.status;
+    tr.onclick = () => toggleRow(tr);
+    const userCell = a.user_name
+        ? `<div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">${a.user_initial}</div><span class="text-xs font-medium text-gray-800">${a.user_name}</span></div>`
+        : `<span class="text-gray-400 text-xs">Unassigned</span>`;
+    const hostname = a.hostname   ? `<span class="font-mono text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${a.hostname}</span>` : `-`;
+    const ip       = a.ip_address ? `<span class="font-mono text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded">${a.ip_address}</span>` : `-`;
+    const badge    = statusBadge[a.status] || 'bg-gray-100 text-gray-500';
+    const statusLbl = a.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    tr.innerHTML = `
+        <td class="px-3 py-2 text-center"><input type="checkbox" name="asset_ids" value="${a.id}" class="row-chk w-4 h-4 rounded text-blue-600" onclick="event.stopPropagation()"></td>
+        <td class="px-3 py-2">${userCell}</td>
+        <td class="px-3 py-2 text-xs font-medium text-gray-800">${a.name}<div class="text-gray-400 font-mono text-xs">${a.asset_tag}</div></td>
+        <td class="px-3 py-2">${hostname}</td>
+        <td class="px-3 py-2">${ip}</td>
+        <td class="px-3 py-2 text-xs text-gray-500">${a.asset_type.charAt(0).toUpperCase()+a.asset_type.slice(1)}</td>
+        <td class="px-3 py-2"><span class="text-xs px-2 py-0.5 rounded font-medium ${badge}">${statusLbl}</span></td>`;
+    return tr;
+}
+
+function renderTable(assets) {
+    const tbody = document.getElementById('asset_tbody');
+    tbody.innerHTML = '';
+    if (!assets.length) { tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-10 text-center text-gray-400">No assets found.</td></tr>`; return; }
+    assets.forEach(a => {
+        const checked = installedIds.has(a.id);
+        const tr = buildRow(a, checked);
+        tbody.appendChild(tr);
+        if (checked) tr.querySelector('.row-chk').checked = true;
+    });
+    updateCount();
+}
+function filterAssets() {
+    const q = document.getElementById('asset_search').value.toLowerCase();
+    const t = document.getElementById('f_type').value;
+    const s = document.getElementById('f_status').value;
+    document.querySelectorAll('.asset-row').forEach(row => {
+        row.style.display = ((!q || row.dataset.search.includes(q)) && (!t || row.dataset.type === t) && (!s || row.dataset.status === s)) ? '' : 'none';
+    });
+}
+function toggleRow(row) {
+    const cb = row.querySelector('.row-chk');
+    cb.checked = !cb.checked;
+    row.classList.toggle('bg-blue-50', cb.checked);
+    updateCount();
+}
+function updateCount() {
+    const n = document.querySelectorAll('.row-chk:checked').length;
+    document.getElementById('selected_count').textContent = `${n} selected`;
+    document.getElementById('done_count').textContent = `${n} asset${n !== 1 ? 's' : ''} selected`;
+    document.getElementById('license_seats').value = n > 0 ? n : {{ sw.seats }};
+}
+document.getElementById('chk_all').addEventListener('change', function () {
+    document.querySelectorAll('.asset-row').forEach(row => {
+        if (row.style.display === 'none') return;
+        const cb = row.querySelector('.row-chk');
+        cb.checked = this.checked;
+        row.classList.toggle('bg-blue-50', this.checked);
+    });
+    updateCount();
+});
+
+fetch('{{ url_for("software.api_assets") }}')
+    .then(r => r.json())
+    .then(data => renderTable(data))
+    .catch(() => {
+        document.getElementById('asset_tbody').innerHTML =
+            `<tr><td colspan="7" class="px-6 py-10 text-center text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Failed to load assets.</td></tr>`;
+    });
+</script>
+{% endblock %}

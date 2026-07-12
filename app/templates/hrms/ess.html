@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Employee Self-Service{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">ESS</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">Employee Self-Service</h1>
+            <p class="text-sm text-gray-500 mt-1">Payslip-ready profile, leave, attendance, investments, claims, and advances in one workspace.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ url_for('hrms.leave') }}" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-calendar-plus"></i> Leave</a>
+            <a href="{{ url_for('hrms.investments') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-file-invoice-dollar"></i> Investments</a>
+            <a href="{{ url_for('hrms.reimbursements') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-receipt"></i> Claim</a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <div class="ticket-stat-card ticket-stat-blue"><div><p class="text-xs text-gray-500 font-medium">Annual CTC</p><p class="text-2xl font-bold text-gray-900 mt-0.5">₹{{ "%.0f"|format(profile.annual_ctc or 0) }}</p></div><span><i class="fas fa-indian-rupee-sign"></i></span></div>
+        <div class="ticket-stat-card ticket-stat-emerald"><div><p class="text-xs text-gray-500 font-medium">Tax Regime</p><p class="text-2xl font-bold text-gray-900 mt-0.5">{{ profile.tax_regime.title() }}</p></div><span><i class="fas fa-scale-balanced"></i></span></div>
+        <div class="ticket-stat-card ticket-stat-amber"><div><p class="text-xs text-gray-500 font-medium">Taxable Income</p><p class="text-2xl font-bold text-gray-900 mt-0.5">₹{{ "%.0f"|format(taxable_income or 0) }}</p></div><span><i class="fas fa-calculator"></i></span></div>
+        <div class="ticket-stat-card ticket-stat-violet"><div><p class="text-xs text-gray-500 font-medium">Monthly Tax</p><p class="text-2xl font-bold text-gray-900 mt-0.5">₹{{ "%.0f"|format(monthly_tax or 0) }}</p></div><span><i class="fas fa-file-invoice"></i></span></div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
+        <div class="space-y-6">
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-800">Recent Attendance</h2></div>
+                <div class="divide-y divide-gray-100">
+                    {% for item in attendance %}
+                    <div class="p-4 flex items-center justify-between gap-3">
+                        <span><strong class="block text-gray-800">{{ item.attendance_date.strftime('%d %b %Y') }}</strong><span class="text-xs text-gray-400">{{ item.work_mode.title() if item.work_mode else 'Office' }}</span></span>
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">{{ item.status.replace('_',' ').title() }}</span>
+                    </div>
+                    {% else %}<div class="p-8 text-center text-gray-400">No attendance records yet.</div>{% endfor %}
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white rounded-2xl shadow p-5">
+                    <h2 class="font-semibold text-gray-800">Investments - {{ financial_year }}</h2>
+                    <div class="mt-3 space-y-2">
+                        {% for item in investments[:5] %}
+                        <div class="border border-gray-100 rounded-lg p-3"><p class="font-medium text-gray-800">{{ item.section }} - ₹{{ "%.0f"|format(item.declared_amount or 0) }}</p><p class="text-xs text-gray-400">{{ item.status.title() }}</p></div>
+                        {% else %}<p class="text-sm text-gray-400 py-4">No declarations submitted.</p>{% endfor %}
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-5">
+                    <h2 class="font-semibold text-gray-800">Loans & Advances</h2>
+                    <div class="mt-3 space-y-2">
+                        {% for item in loans %}
+                        <div class="border border-gray-100 rounded-lg p-3"><p class="font-medium text-gray-800">{{ item.request_type.title() }} - ₹{{ "%.0f"|format(item.amount or 0) }}</p><p class="text-xs text-gray-400">{{ item.status.title() }} &bull; EMI ₹{{ "%.0f"|format(item.emi_amount or 0) }}</p></div>
+                        {% else %}<p class="text-sm text-gray-400 py-4">No loan or advance requests.</p>{% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <aside class="space-y-4">
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800">Payroll Details</h2>
+                <dl class="mt-4 space-y-3 text-sm">
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">PAN</dt><dd class="text-gray-800">{{ profile.pan_number or '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">UAN</dt><dd class="text-gray-800">{{ profile.uan_number or '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">ESI</dt><dd class="text-gray-800">{{ profile.esi_number or '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Bank</dt><dd class="text-gray-800 text-right">{{ profile.bank_name or '-' }}</dd></div>
+                </dl>
+            </div>
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800">Quick Actions</h2>
+                <div class="grid gap-2 mt-4">
+                    <a href="{{ url_for('hrms.leave') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-calendar-check text-blue-500"></i><span class="text-sm font-medium">Apply Leave</span></a>
+                    <a href="{{ url_for('hrms.investments') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-file-invoice-dollar text-emerald-600"></i><span class="text-sm font-medium">Declare Investment</span></a>
+                    <a href="{{ url_for('hrms.loans') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-hand-holding-dollar text-violet-600"></i><span class="text-sm font-medium">Request Advance</span></a>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

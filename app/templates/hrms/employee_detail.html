@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% block title %}{{ employee.name }} - HRMS Profile{% endblock %}
+{% block content %}
+{% set can_edit = current_user.can_manage_hrms or current_user.can_manage_system %}
+<div class="space-y-6">
+    <div class="bg-white rounded-2xl shadow overflow-hidden">
+        <div class="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-800 px-6 py-6 text-white">
+            <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-2xl font-bold">{{ employee.name[0].upper() }}</div>
+                    <div>
+                        <p class="text-xs uppercase tracking-wide text-blue-100">{{ employee.employee_id or 'No Employee ID' }}</p>
+                        <h1 class="text-2xl font-bold mt-1">{{ employee.name }}</h1>
+                        <p class="text-sm text-blue-100 mt-1">{{ employee.designation or 'No designation' }} | {{ employee.department.name if employee.department else 'No department' }}</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ url_for('hrms.employees') }}" class="ticket-action-btn bg-white/10 hover:bg-white/20 text-white border border-white/20"><i class="fas fa-arrow-left"></i> Directory</a>
+                    {% if can_edit %}<a href="{{ url_for('admin.edit_user', user_id=employee.id) }}" class="ticket-action-btn bg-white text-slate-800 hover:bg-blue-50"><i class="fas fa-user-pen"></i> Account</a>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 divide-x divide-y xl:divide-y-0 divide-gray-100 text-sm">
+            <div class="p-4"><p class="text-gray-400">Role</p><p class="font-semibold text-gray-900">{{ employee.role_label }}</p></div>
+            <div class="p-4"><p class="text-gray-400">Manager</p><p class="font-semibold text-gray-900">{{ employee.reporting_manager.name if employee.reporting_manager else 'None' }}</p></div>
+            <div class="p-4"><p class="text-gray-400">Joining</p><p class="font-semibold text-gray-900">{{ employee.date_of_joining.strftime('%d %b %Y') if employee.date_of_joining else 'None' }}</p></div>
+            <div class="p-4"><p class="text-gray-400">Location</p><p class="font-semibold text-gray-900">{{ employee.work_location or 'None' }}</p></div>
+            <div class="p-4"><p class="text-gray-400">Monthly CTC</p><p class="font-semibold text-gray-900">INR {{ "%.0f"|format(payroll_profile.monthly_ctc or 0) }}</p></div>
+            <div class="p-4"><p class="text-gray-400">Status</p><p class="font-semibold {% if employee.is_active %}text-green-700{% else %}text-red-700{% endif %}">{{ 'Active' if employee.is_active else 'Inactive' }}</p></div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow p-2 overflow-x-auto">
+        <nav class="flex gap-2 min-w-max">
+            {% for tab_id, label, icon in [
+                ('personal', 'Personal Details', 'fa-id-card'),
+                ('official', 'Official Details', 'fa-briefcase'),
+                ('salary', 'Salary Details', 'fa-money-check-dollar'),
+                ('statutory', 'PF, ESI, EPS', 'fa-scale-balanced'),
+                ('documents', 'Documents', 'fa-folder-open'),
+                ('mobile', 'Mobile App', 'fa-mobile-screen'),
+                ('timeline', 'My Timeline', 'fa-timeline')
+            ] %}
+            <button type="button" class="profile-tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-blue-50 hover:text-blue-700 data-[active=true]:bg-blue-600 data-[active=true]:text-white" data-target="{{ tab_id }}" {% if loop.first %}data-active="true"{% endif %}><i class="fas {{ icon }} mr-2"></i>{{ label }}</button>
+            {% endfor %}
+        </nav>
+    </div>
+
+    <form method="POST" action="{{ url_for('hrms.update_employee_profile', user_id=employee.id) }}" class="space-y-6">
+        <fieldset {% if not can_edit %}disabled{% endif %} class="space-y-6">
+            <section class="profile-tab-panel grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="personal">
+                <div class="bg-white rounded-2xl shadow p-5 space-y-4">
+                    <h2 class="font-semibold text-gray-900">Personal Details</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="form-label">Phone Number</label><input name="phone" value="{{ employee.phone or '' }}" class="form-input"></div>
+                        <div><label class="form-label">Personal Email</label><input type="email" name="personal_email" value="{{ hr_profile.personal_email or '' }}" class="form-input"></div>
+                        <div><label class="form-label">Date of Birth</label><input type="date" name="date_of_birth" value="{{ hr_profile.date_of_birth.isoformat() if hr_profile.date_of_birth else '' }}" class="form-input"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="form-label">Gender</label><select name="gender" class="filter-select w-full"><option value="">Select</option>{% for item in ['Male','Female','Other'] %}<option value="{{ item }}" {% if hr_profile.gender == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+                        <div><label class="form-label">Marital Status</label><select name="marital_status" class="filter-select w-full"><option value="">Select</option>{% for item in ['Single','Married','Divorced','Other'] %}<option value="{{ item }}" {% if hr_profile.marital_status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+                        <div><label class="form-label">Blood Group</label><input name="blood_group" value="{{ hr_profile.blood_group or '' }}" class="form-input" placeholder="B+"></div>
+                    </div>
+                    <h3 class="font-semibold text-gray-800 pt-2">Residential Address</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="form-label">Address Line 1</label><input name="address_line1" value="{{ hr_profile.address_line1 or '' }}" class="form-input"></div>
+                        <div><label class="form-label">Address Line 2</label><input name="address_line2" value="{{ hr_profile.address_line2 or '' }}" class="form-input"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div><label class="form-label">City</label><input name="city" value="{{ hr_profile.city or '' }}" class="form-input"></div>
+                        <div><label class="form-label">State</label><input name="state" value="{{ hr_profile.state or '' }}" class="form-input"></div>
+                        <div><label class="form-label">PIN Code</label><input name="postal_code" value="{{ hr_profile.postal_code or '' }}" class="form-input"></div>
+                        <div><label class="form-label">Country</label><input name="country" value="{{ hr_profile.country or 'India' }}" class="form-input"></div>
+                    </div>
+                </div>
+                <aside class="bg-white rounded-2xl shadow p-5 space-y-3">
+                    <h2 class="font-semibold text-gray-900">Other Info</h2>
+                    <div><label class="form-label">Emergency Contact Name</label><input name="emergency_contact_name" value="{{ employee.emergency_contact_name or '' }}" class="form-input"></div>
+                    <div><label class="form-label">Emergency Contact Phone</label><input name="emergency_contact_phone" value="{{ employee.emergency_contact_phone or '' }}" class="form-input"></div>
+                    <div><label class="form-label">Miscellaneous Information</label><textarea name="other_info" rows="6" class="form-input">{{ hr_profile.other_info or '' }}</textarea></div>
+                </aside>
+            </section>
+
+            <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="official">
+                <div class="bg-white rounded-2xl shadow p-5 space-y-4">
+                    <h2 class="font-semibold text-gray-900">Official Details</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="form-label">Official Email</label><input value="{{ employee.email }}" class="form-input bg-gray-50" disabled></div>
+                        <div><label class="form-label">Designation</label><input name="designation" value="{{ employee.designation or '' }}" class="form-input"></div>
+                        <div><label class="form-label">Reporting Manager</label><select name="reporting_manager_id" class="filter-select w-full"><option value="">None</option>{% for manager in managers %}<option value="{{ manager.id }}" {% if employee.reporting_manager_id == manager.id %}selected{% endif %}>{{ manager.name }}</option>{% endfor %}</select></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="form-label">Employment Type</label><input name="employment_type" value="{{ employee.employment_type or '' }}" class="form-input" placeholder="Full Time"></div>
+                        <div><label class="form-label">Date of Joining</label><input type="date" name="date_of_joining" value="{{ employee.date_of_joining.isoformat() if employee.date_of_joining else '' }}" class="form-input"></div>
+                        <div><label class="form-label">Probation End Date</label><input type="date" name="probation_end_date" value="{{ employee.probation_end_date.isoformat() if employee.probation_end_date else '' }}" class="form-input"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="form-label">Branch</label><input name="branch" value="{{ employee.branch or '' }}" class="form-input"></div>
+                        <div><label class="form-label">Work Location</label><input name="work_location" value="{{ employee.work_location or '' }}" class="form-input"></div>
+                        <div><label class="form-label">Cost Center</label><input name="cost_center" value="{{ employee.cost_center or '' }}" class="form-input"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="form-label">Grade</label><input name="grade" value="{{ employee.grade or '' }}" class="form-input"></div>
+                        <div><label class="form-label">Shift</label><input name="shift" value="{{ employee.shift or '' }}" class="form-input"></div>
+                    </div>
+                </div>
+                <aside class="bg-white rounded-2xl shadow p-5 space-y-3">
+                    <h2 class="font-semibold text-gray-900">Bank Account Details</h2>
+                    <div><label class="form-label">Bank Name</label><input name="bank_name" value="{{ payroll_profile.bank_name or '' }}" class="form-input"></div>
+                    <div><label class="form-label">Bank Account Number</label><input name="bank_account" value="{{ payroll_profile.bank_account or '' }}" class="form-input"></div>
+                    <div><label class="form-label">IFSC Code</label><input name="ifsc_code" value="{{ payroll_profile.ifsc_code or '' }}" class="form-input"></div>
+                </aside>
+            </section>
+
+            <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="salary">
+                <div class="bg-white rounded-2xl shadow p-5 space-y-4">
+                    <h2 class="font-semibold text-gray-900">Salary Details</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="form-label">CTC</label><input type="number" step="0.01" name="annual_ctc" value="{{ payroll_profile.annual_ctc or 0 }}" class="form-input salary-annual-ctc bg-gray-50" readonly></div>
+                        <div><label class="form-label">FBP</label><input type="number" step="0.01" name="flexible_benefit_plan" value="{{ payroll_profile.flexible_benefit_plan or 0 }}" class="form-input salary-fbp bg-gray-50" readonly></div>
+                        <div><label class="form-label">Variable Pay</label><input type="number" step="0.01" name="variable_pay" value="{{ payroll_profile.variable_pay or 0 }}" class="form-input"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="form-label">Effective From</label><input type="date" name="effective_from" value="{{ today.isoformat() }}" class="form-input"></div>
+                        <div><label class="form-label">Change Reason</label><input name="change_reason" class="form-input" placeholder="Annual revision, promotion, correction"></div>
+                    </div>
+                    <div class="border border-gray-100 rounded-2xl overflow-hidden" data-salary-editor>
+                        <div class="px-4 py-3 bg-gray-50 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                            <div>
+                                <h3 class="font-semibold text-gray-900">CTC Breakup</h3>
+                                <p class="text-xs text-gray-500">Edit annual component amounts. Total CTC and FBP calculate automatically.</p>
+                            </div>
+                            <div class="text-sm font-bold text-gray-900">Total INR <span data-salary-total>{{ "%.2f"|format(salary_component_total or 0) }}</span></div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-white text-gray-500"><tr><th class="px-4 py-3 text-left">Component</th><th class="px-4 py-3 text-right">Annual Amount</th><th class="px-4 py-3 text-center">FBP</th></tr></thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    {% for component in salary_components %}
+                                    <tr>
+                                        <td class="px-4 py-2 min-w-[260px]">
+                                            <div class="font-medium text-gray-700">{{ component.name }}</div>
+                                            <input type="hidden" name="component_name[]" value="{{ component.name }}">
+                                            <input type="hidden" name="component_group[]" value="{{ component.component_group or 'ctc' }}">
+                                        </td>
+                                        <td class="px-4 py-2 min-w-[180px]">
+                                            <input type="number" step="0.01" min="0" name="component_amount[]" value="{{ component.amount or 0 }}" class="form-input text-sm text-right salary-component-amount">
+                                        </td>
+                                        <td class="px-4 py-2 text-center">
+                                            <input type="checkbox" name="component_fbp[]" value="{{ component.name }}" class="salary-component-fbp" {% if component.is_fbp %}checked{% endif %}>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr class="bg-blue-50">
+                                        <td class="px-4 py-3 font-bold text-gray-900">TOTAL CTC</td>
+                                        <td class="px-4 py-3 text-right font-bold text-gray-900">INR <span data-salary-total>{{ "%.2f"|format(salary_component_total or 0) }}</span></td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                        <h3 class="font-semibold text-emerald-900">List of FBP components included</h3>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            {% for component in salary_components if component.is_fbp %}
+                            <span class="px-3 py-1 rounded-full bg-white border border-emerald-100 text-xs font-semibold text-emerald-700">{{ component.name }}</span>
+                            {% else %}
+                            <span class="text-sm text-emerald-700">No FBP components selected.</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 text-gray-500"><tr><th class="px-4 py-3 text-left">Effective</th><th class="px-4 py-3 text-left">CTC</th><th class="px-4 py-3 text-left">FBP</th><th class="px-4 py-3 text-left">Variable</th><th class="px-4 py-3 text-left">Reason</th></tr></thead>
+                            <tbody class="divide-y divide-gray-100">
+                                {% for item in salary_history %}
+                                <tr><td class="px-4 py-3">{{ item.effective_from.strftime('%d %b %Y') }}</td><td class="px-4 py-3">INR {{ "%.0f"|format(item.annual_ctc or 0) }}</td><td class="px-4 py-3">INR {{ "%.0f"|format(item.flexible_benefit_plan or 0) }}</td><td class="px-4 py-3">INR {{ "%.0f"|format(item.variable_pay or 0) }}</td><td class="px-4 py-3">{{ item.change_reason or 'Update' }}</td></tr>
+                                {% else %}
+                                <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">No CTC history yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <aside class="space-y-4">
+                    <div class="ticket-stat-card ticket-stat-blue"><div><p class="text-xs text-gray-500 font-medium">Monthly CTC</p><p class="text-2xl font-bold text-gray-900">INR <span data-salary-monthly>{{ "%.0f"|format(payroll_profile.monthly_ctc or 0) }}</span></p></div><span><i class="fas fa-calendar"></i></span></div>
+                    <div class="ticket-stat-card ticket-stat-amber"><div><p class="text-xs text-gray-500 font-medium">Taxable Income</p><p class="text-2xl font-bold text-gray-900">INR <span data-salary-taxable>{{ "%.0f"|format(payroll_profile.estimated_taxable_income or 0) }}</span></p></div><span><i class="fas fa-calculator"></i></span></div>
+                </aside>
+            </section>
+
+            <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="statutory">
+                <div class="bg-white rounded-2xl shadow p-5 space-y-4">
+                    <h2 class="font-semibold text-gray-900">PF, ESI, EPS</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="form-label">PAN</label><input name="pan_number" value="{{ payroll_profile.pan_number or '' }}" class="form-input"></div>
+                        <div><label class="form-label">PF Number</label><input name="pf_number" value="{{ payroll_profile.pf_number or '' }}" class="form-input"></div>
+                        <div><label class="form-label">UAN Number</label><input name="uan_number" value="{{ payroll_profile.uan_number or '' }}" class="form-input"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="form-label">ESI Number</label><input name="esi_number" value="{{ payroll_profile.esi_number or '' }}" class="form-input"></div>
+                        <div><label class="form-label">EPS Number</label><input name="eps_number" value="{{ payroll_profile.eps_number or '' }}" class="form-input"></div>
+                    </div>
+                </div>
+                <aside class="bg-white rounded-2xl shadow p-5">
+                    <h2 class="font-semibold text-gray-900 mb-4">Compliance Flags</h2>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between"><span>PF</span><strong class="{{ 'text-green-700' if payroll_profile.pf_enabled else 'text-gray-400' }}">{{ 'Enabled' if payroll_profile.pf_enabled else 'Disabled' }}</strong></div>
+                        <div class="flex justify-between"><span>ESIC</span><strong class="{{ 'text-green-700' if payroll_profile.esi_enabled else 'text-gray-400' }}">{{ 'Enabled' if payroll_profile.esi_enabled else 'Disabled' }}</strong></div>
+                        <div class="flex justify-between"><span>PT</span><strong class="{{ 'text-green-700' if payroll_profile.pt_enabled else 'text-gray-400' }}">{{ 'Enabled' if payroll_profile.pt_enabled else 'Disabled' }}</strong></div>
+                    </div>
+                </aside>
+            </section>
+
+            <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="mobile">
+                <div class="bg-white rounded-2xl shadow p-5 space-y-4">
+                    <h2 class="font-semibold text-gray-900">Mobile App</h2>
+                    <label class="flex items-center gap-3 text-sm font-semibold text-gray-700"><input type="checkbox" name="mobile_app_enabled" {% if hr_profile.mobile_app_enabled %}checked{% endif %}> Mobile app access enabled</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="form-label">Registered Device ID</label><input name="mobile_device_id" value="{{ hr_profile.mobile_device_id or '' }}" class="form-input"></div>
+                        <div><label class="form-label">Last Login</label><input value="{{ hr_profile.mobile_last_login.strftime('%d %b %Y %H:%M') if hr_profile.mobile_last_login else 'No login captured' }}" class="form-input bg-gray-50" disabled></div>
+                    </div>
+                </div>
+                <aside class="bg-white rounded-2xl shadow p-5 text-sm text-gray-600">
+                    <h2 class="font-semibold text-gray-900 mb-3">ESS Access</h2>
+                    <p>Employee can use ESS for leave, attendance, reimbursements, investment declarations, and loans.</p>
+                </aside>
+            </section>
+        </fieldset>
+
+        {% if can_edit %}
+        <div class="flex justify-end">
+            <button class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-save"></i> Save Employee Profile</button>
+        </div>
+        {% endif %}
+    </form>
+
+    <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="documents">
+        <div class="bg-white rounded-2xl shadow overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-900">Documents & Certificates</h2></div>
+            <div class="divide-y divide-gray-100">
+                {% for doc in documents %}
+                <div class="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div><p class="font-semibold text-gray-900">{{ doc.title }}</p><p class="text-xs text-gray-500">{{ doc.document_type.replace('_',' ').title() }} | {{ doc.created_at.strftime('%d %b %Y') }} | {{ doc.original_filename }}</p>{% if doc.notes %}<p class="text-sm text-gray-500 mt-1">{{ doc.notes }}</p>{% endif %}</div>
+                    <a href="{{ url_for('hrms.employee_document_download', document_id=doc.id) }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-download"></i> Download</a>
+                </div>
+                {% else %}
+                <div class="p-8 text-center text-gray-400">No documents uploaded.</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% if can_edit %}
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('hrms.upload_employee_document', user_id=employee.id) }}" class="bg-white rounded-2xl shadow p-5 space-y-4">
+            <h2 class="font-semibold text-gray-900">Upload Document</h2>
+            <div><label class="form-label">Document Type</label><select name="document_type" class="filter-select w-full"><option value="certificate">Certificate</option><option value="identity">Identity Proof</option><option value="address">Address Proof</option><option value="education">Education</option><option value="experience">Experience Letter</option><option value="contract">Contract</option><option value="other">Other</option></select></div>
+            <div><label class="form-label">Title</label><input name="title" class="form-input" placeholder="Degree certificate"></div>
+            <div><label class="form-label">File</label><input type="file" name="document" class="form-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" required></div>
+            <div><label class="form-label">Notes</label><textarea name="notes" rows="3" class="form-input"></textarea></div>
+            <button class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-upload"></i> Upload</button>
+        </form>
+        {% endif %}
+    </section>
+
+    <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="timeline">
+        <div class="bg-white rounded-2xl shadow p-5">
+            <h2 class="font-semibold text-gray-900 mb-4">My Timeline</h2>
+            <div class="space-y-4">
+                {% for title, item_date, detail in timeline %}
+                <div class="flex gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center"><i class="fas fa-circle text-xs"></i></div>
+                    <div><p class="font-semibold text-gray-900">{{ title }}</p><p class="text-sm text-gray-500">{{ item_date.strftime('%d %b %Y') }} | {{ detail }}</p></div>
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-400">No timeline events yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+        <aside class="space-y-4">
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-900">Recent Leave</h2></div>
+                <div class="divide-y divide-gray-100">{% for leave in leaves %}<div class="p-4 flex justify-between gap-3"><span class="text-sm text-gray-700">{{ leave.leave_type.title() }} | {{ leave.date_range_label }}</span><span class="text-xs font-semibold">{{ leave.status.title() }}</span></div>{% else %}<div class="p-6 text-gray-400 text-sm">No leave records.</div>{% endfor %}</div>
+            </div>
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-900">Recent Attendance</h2></div>
+                <div class="divide-y divide-gray-100">{% for item in attendance %}<div class="p-4 flex justify-between gap-3"><span class="text-sm text-gray-700">{{ item.attendance_date.strftime('%d %b %Y') }} | {{ item.status.title() }}</span><span class="text-xs text-gray-500">{{ item.check_in.strftime('%H:%M') if item.check_in else '--' }} - {{ item.check_out.strftime('%H:%M') if item.check_out else '--' }}</span></div>{% else %}<div class="p-6 text-gray-400 text-sm">No attendance records.</div>{% endfor %}</div>
+            </div>
+        </aside>
+    </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const buttons = Array.from(document.querySelectorAll('.profile-tab-btn'));
+    const panels = Array.from(document.querySelectorAll('.profile-tab-panel'));
+    function activate(target) {
+        buttons.forEach((button) => button.dataset.active = String(button.dataset.target === target));
+        panels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.panel !== target));
+    }
+    buttons.forEach((button) => button.addEventListener('click', () => activate(button.dataset.target)));
+
+    const salaryEditor = document.querySelector('[data-salary-editor]');
+    if (salaryEditor) {
+        const amountInputs = Array.from(document.querySelectorAll('.salary-component-amount'));
+        const fbpInputs = Array.from(document.querySelectorAll('.salary-component-fbp'));
+        const annualInput = document.querySelector('.salary-annual-ctc');
+        const fbpInput = document.querySelector('.salary-fbp');
+        const totalLabels = Array.from(document.querySelectorAll('[data-salary-total]'));
+        const monthlyLabel = document.querySelector('[data-salary-monthly]');
+        const taxableLabel = document.querySelector('[data-salary-taxable]');
+        const formatMoney = (amount, decimals = 2) => Number(amount || 0).toLocaleString('en-IN', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+        });
+        function recalculateSalary() {
+            let total = 0;
+            let fbpTotal = 0;
+            amountInputs.forEach((input, index) => {
+                const amount = Number.parseFloat(input.value || '0') || 0;
+                total += amount;
+                if (fbpInputs[index] && fbpInputs[index].checked) {
+                    fbpTotal += amount;
+                }
+            });
+            if (annualInput) annualInput.value = total.toFixed(2);
+            if (fbpInput) fbpInput.value = fbpTotal.toFixed(2);
+            totalLabels.forEach((label) => label.textContent = formatMoney(total));
+            if (monthlyLabel) monthlyLabel.textContent = formatMoney(total / 12, 0);
+            if (taxableLabel) taxableLabel.textContent = formatMoney(Math.max(total - 50000, 0), 0);
+        }
+        amountInputs.forEach((input) => input.addEventListener('input', recalculateSalary));
+        fbpInputs.forEach((input) => input.addEventListener('change', recalculateSalary));
+        recalculateSalary();
+    }
+});
+</script>
+{% endblock %}

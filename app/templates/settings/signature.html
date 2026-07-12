@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% block title %}Signature Settings - IT HelpDesk{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <i class="fas fa-signature text-emerald-500"></i> Signature Settings
+        </h2>
+        <p class="text-gray-500 text-sm mt-1">
+            Manage signature for <span class="font-semibold text-gray-700">{{ target_user.name }}</span>.
+        </p>
+    </div>
+    <a href="{{ url_for('admin.users') if admin_mode else url_for('settings.index') }}" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+</div>
+
+<form method="POST" class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-5">
+    {% if admin_mode %}
+    <input type="hidden" name="admin_return" value="1">
+    {% endif %}
+    <section class="bg-white rounded-2xl shadow p-5">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
+            <div>
+                <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-pen-nib text-blue-500"></i> Signature Content
+                </h3>
+                <p class="text-xs text-gray-400 mt-1">This signature is used first. If empty, the system global signature is used as fallback.</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="signature_enabled" class="rounded border-gray-300"
+                        {% if signature.signature_enabled %}checked{% endif %}>
+                    <span class="text-sm text-gray-700 font-medium">Enable</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="auto_insert_signature" class="rounded border-gray-300"
+                        {% if signature.auto_insert_signature %}checked{% endif %}>
+                    <span class="text-sm text-gray-700 font-medium">Auto insert</span>
+                </label>
+            </div>
+        </div>
+
+        <label class="form-label">Signature Editor</label>
+        <input type="hidden" name="signature_html" id="signature_html">
+        <div class="signature-editor-wrap">
+            <div class="rte-toolbar" aria-label="Signature editor toolbar">
+                <button type="button" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+                <button type="button" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+                <button type="button" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+                <span class="rte-divider"></span>
+                <button type="button" data-command="createLink" title="Link"><i class="fas fa-link"></i></button>
+                <button type="button" data-command="insertImage" title="Image URL"><i class="fas fa-image"></i></button>
+                <button type="button" data-command="insertHTML" data-value="<br>" title="Line break"><i class="fas fa-turn-down"></i></button>
+                <span class="rte-divider"></span>
+                <button type="button" data-command="removeFormat" title="Clear formatting"><i class="fas fa-eraser"></i></button>
+            </div>
+            <iframe id="signature_editor_frame" class="signature-editor-frame" sandbox="allow-same-origin" title="Signature editor"></iframe>
+            <div class="rte-statusbar">
+                <span>Paste Outlook signature inside the editor</span>
+                <span id="signature_status">Ready</span>
+            </div>
+        </div>
+
+        <details class="mt-3">
+            <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700">View saved HTML</summary>
+            <pre id="signature_source_preview" class="mt-2 bg-gray-900 text-gray-100 text-xs rounded-lg p-3 overflow-auto max-h-48"></pre>
+        </details>
+
+        <div class="flex flex-wrap gap-2 mt-3">
+            <button type="button" id="signature_default_btn" class="text-sm border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg inline-flex items-center gap-2">
+                <i class="fas fa-rotate-left"></i> Default
+            </button>
+            <button type="button" id="signature_preview_btn" class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2">
+                <i class="fas fa-eye"></i> Preview
+            </button>
+            <button type="submit" class="text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2">
+                <i class="fas fa-floppy-disk"></i> Save Signature
+            </button>
+        </div>
+    </section>
+
+    <aside class="space-y-4">
+        <div class="bg-white rounded-2xl shadow p-5">
+            <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <i class="fas fa-eye text-blue-500"></i> Preview
+            </h3>
+            <iframe id="signature_preview" class="email-signature-preview border border-gray-200 rounded-xl bg-white w-full"
+                sandbox="" title="Signature preview"></iframe>
+        </div>
+
+        <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-700">
+            <p class="font-semibold text-blue-900 mb-2"><i class="fas fa-circle-info mr-1"></i> Where It Appears</p>
+            <p>Create Ticket, Public Reply, and Email Reply will use this signature when auto insert is enabled.</p>
+            <p class="mt-2 text-xs text-blue-500">Internal notes do not use signatures.</p>
+        </div>
+    </aside>
+</form>
+
+<script>
+const DEFAULT_SIGNATURE_HTML = {{ default_signature|tojson }};
+const INITIAL_SIGNATURE_HTML = {{ (signature.signature_html if signature.signature_html else default_signature)|tojson }};
+function signatureField(id) {
+    return document.getElementById(id);
+}
+
+function editorDoc() {
+    const frame = signatureField('signature_editor_frame');
+    return frame ? frame.contentDocument : null;
+}
+
+function editorHtmlShell(body) {
+    return `<!doctype html><html><head><base target="_blank"><style>
+        body{font-family:Arial,sans-serif;font-size:13px;color:#374151;margin:10px;line-height:1.25;min-height:150px;outline:none}
+        p{margin:0 0 4px}div{margin:0}table{border-collapse:collapse;margin:0}td{vertical-align:top;padding:1px 3px}
+        img{max-width:220px;height:auto;vertical-align:middle}a{color:#2563eb}
+        body:empty:before{content:"Paste your Outlook signature here";color:#9ca3af}
+    </style></head><body contenteditable="true">${body || ''}</body></html>`;
+}
+
+function syncSignatureHtml() {
+    const doc = editorDoc();
+    const hidden = signatureField('signature_html');
+    const sourcePreview = signatureField('signature_source_preview');
+    if (!doc || !hidden) return;
+    hidden.value = compactSignatureHtml(doc.body ? doc.body.innerHTML.trim() : '');
+    if (sourcePreview) sourcePreview.textContent = hidden.value;
+}
+
+function compactSignatureHtml(html) {
+    if (!html) return '';
+    let compact = html;
+    const emptyBlock = /<(p|div)([^>]*)>(?:\s|&nbsp;|&#160;|<br\s*\/?>)*<\/\1>/gi;
+    let previous = null;
+    while (previous !== compact) {
+        previous = compact;
+        compact = compact.replace(emptyBlock, '');
+    }
+    compact = compact.replace(/(?:<br\s*\/?>\s*){3,}/gi, '<br><br>');
+    compact = compact.replace(/(<br\s*\/?>\s*)+(<\/?(?:table|tbody|tr|td|div|p)\b)/gi, '$2');
+    compact = compact.replace(/(<\/(?:table|tbody|tr|td|div|p)>)\s*(<br\s*\/?>\s*)+/gi, '$1');
+    return compact.trim();
+}
+
+function renderSignaturePreview() {
+    const preview = signatureField('signature_preview');
+    const hidden = signatureField('signature_html');
+    if (!preview || !hidden) return;
+    syncSignatureHtml();
+    const body = hidden.value || '<p style="color:#9ca3af;font-family:Arial,sans-serif">No signature configured.</p>';
+    preview.srcdoc = `<!doctype html><html><head><base target="_blank"><style>body{font-family:Arial,sans-serif;font-size:13px;color:#374151;margin:10px;line-height:1.25}p{margin:0 0 4px}div{margin:0}table{border-collapse:collapse;margin:0}td{vertical-align:top;padding:1px 3px}img{max-width:220px;height:auto;vertical-align:middle}a{color:#2563eb}</style></head><body>${body}</body></html>`;
+}
+
+function loadSignatureEditor(html) {
+    const frame = signatureField('signature_editor_frame');
+    if (!frame) return;
+    frame.srcdoc = editorHtmlShell(html);
+    frame.addEventListener('load', () => {
+        const doc = editorDoc();
+        if (!doc || !doc.body) return;
+        doc.body.addEventListener('input', () => {
+            syncSignatureHtml();
+            renderSignaturePreview();
+        });
+        doc.body.addEventListener('paste', () => {
+            const status = signatureField('signature_status');
+            if (status) status.textContent = 'Pasted content ready to save';
+            setTimeout(() => {
+                syncSignatureHtml();
+                renderSignaturePreview();
+            }, 50);
+        });
+        syncSignatureHtml();
+        renderSignaturePreview();
+    }, { once: true });
+}
+
+function runSignatureCommand(command, value) {
+    const doc = editorDoc();
+    if (!doc || !doc.body) return;
+    doc.body.focus();
+    if (command === 'createLink') {
+        value = window.prompt('Enter link URL:', 'https://');
+        if (!value) return;
+    }
+    if (command === 'insertImage') {
+        const url = window.prompt('Image URL:', 'https://');
+        if (!url || !/^https?:\/\//i.test(url)) return;
+        doc.execCommand('insertHTML', false, `<img src="${url.replace(/"/g, '&quot;')}" alt="">`);
+    } else {
+        doc.execCommand(command, false, value || null);
+    }
+    syncSignatureHtml();
+    renderSignaturePreview();
+}
+
+document.querySelectorAll('.signature-editor-wrap [data-command]').forEach(button => {
+    button.addEventListener('click', () => runSignatureCommand(button.dataset.command, button.dataset.value || null));
+});
+
+const defaultBtn = signatureField('signature_default_btn');
+if (defaultBtn) {
+    defaultBtn.addEventListener('click', () => loadSignatureEditor(DEFAULT_SIGNATURE_HTML));
+}
+const previewBtn = signatureField('signature_preview_btn');
+if (previewBtn) previewBtn.addEventListener('click', renderSignaturePreview);
+const form = document.querySelector('form');
+if (form) form.addEventListener('submit', syncSignatureHtml);
+loadSignatureEditor(INITIAL_SIGNATURE_HTML);
+</script>
+
+{% endblock %}

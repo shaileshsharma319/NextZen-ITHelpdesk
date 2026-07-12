@@ -1,0 +1,15 @@
+[Unit]
+Description=IT HelpDesk Email Ticket Auto Fetch
+After=network.target mysql.service helpdesk.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/helpdesk
+EnvironmentFile=/etc/helpdesk/helpdesk.env
+ExecStart=/opt/helpdesk/venv/bin/python /opt/helpdesk/scripts/email_fetch_worker.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

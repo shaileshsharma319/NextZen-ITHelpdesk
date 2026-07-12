@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Profile Settings - IT HelpDesk{% endblock %}
+{% block content %}
+
+<div class="space-y-6">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <i class="fas fa-user-circle text-blue-500"></i> Profile Settings
+            </h2>
+            <p class="text-gray-500 text-sm mt-1">View your HelpDesk account, department, location, and access information.</p>
+        </div>
+        <a href="{{ url_for('settings.index') }}" class="inline-flex items-center gap-2 border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-semibold">
+            <i class="fas fa-arrow-left"></i> Basic Settings
+        </a>
+    </div>
+
+    <section class="bg-white rounded-2xl shadow overflow-hidden">
+        <div class="bg-slate-900 text-white px-6 py-6 flex flex-col md:flex-row md:items-center gap-5">
+            <div class="w-20 h-20 rounded-2xl bg-blue-600 flex items-center justify-center text-3xl font-bold shadow-lg">
+                {{ current_user.name[0].upper() }}
+            </div>
+            <div class="min-w-0">
+                <h1 class="text-2xl font-bold truncate">{{ current_user.name }}</h1>
+                <p class="text-slate-300 text-sm mt-1">{{ current_user.email }}</p>
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <span class="text-xs bg-white/10 border border-white/10 px-2.5 py-1 rounded-full">{{ current_user.role_label }}</span>
+                    {% if current_user.department %}<span class="text-xs bg-white/10 border border-white/10 px-2.5 py-1 rounded-full">{{ current_user.department.name }}</span>{% endif %}
+                    <span class="text-xs bg-white/10 border border-white/10 px-2.5 py-1 rounded-full">{{ 'Active' if current_user.is_active else 'Inactive' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% set fields = [
+                    ('User Code', current_user.employee_id or 'Not set', 'fa-id-badge'),
+                    ('Username', current_user.username or 'Not set', 'fa-user'),
+                    ('Phone', current_user.phone or 'Not set', 'fa-phone'),
+                    ('Company / Domain', current_user.company_domain or 'Not set', 'fa-building'),
+                    ('Job Title', current_user.designation or 'Not set', 'fa-briefcase'),
+                    ('Department', current_user.department.name if current_user.department else 'Not set', 'fa-users'),
+                    ('Location', ((current_user.work_location or 'Not set') ~ (', ' ~ current_user.work_state if current_user.work_state else '') ~ (' (' ~ current_user.location_code ~ ')' if current_user.location_code else '')), 'fa-location-dot'),
+                    ('Account Created', current_user.created_at.strftime('%d %b %Y') if current_user.created_at else 'Not set', 'fa-calendar')
+                ] %}
+                {% for label, value, icon in fields %}
+                <div class="border border-gray-100 rounded-xl p-4">
+                    <p class="text-xs text-gray-400 flex items-center gap-2"><i class="fas {{ icon }} text-blue-500"></i> {{ label }}</p>
+                    <p class="font-semibold text-gray-900 mt-1 break-words">{{ value }}</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <aside class="space-y-4">
+                <div class="border border-blue-100 bg-blue-50 rounded-2xl p-5">
+                    <h3 class="font-semibold text-blue-900 flex items-center gap-2"><i class="fas fa-shield-halved"></i> Security</h3>
+                    <p class="text-sm text-blue-700 mt-2">MFA status: <strong>{{ 'Enabled' if current_user.two_factor_enabled else ('Required' if current_user.two_factor_required else 'Not enabled') }}</strong></p>
+                    <a href="{{ url_for('settings.security') }}" class="mt-4 inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold">
+                        <i class="fas fa-gear"></i> Security Settings
+                    </a>
+                </div>
+
+                <div class="border border-gray-100 rounded-2xl p-5">
+                    <h3 class="font-semibold text-gray-900 flex items-center gap-2"><i class="fas fa-key"></i> Access</h3>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        {% if current_user.can_manage_helpdesk %}<span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full">Helpdesk</span>{% endif %}
+                        {% if current_user.can_manage_inventory %}<span class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded-full">Inventory</span>{% endif %}
+                        {% if current_user.can_manage_licenses %}<span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full">Licenses</span>{% endif %}
+                        {% if current_user.can_manage_compliance %}<span class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full">Compliance</span>{% endif %}
+                        {% if not current_user.can_manage_helpdesk and not current_user.can_manage_inventory and not current_user.can_manage_licenses and not current_user.can_manage_compliance %}
+                        <span class="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">Basic Helpdesk</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </section>
+</div>
+
+{% endblock %}

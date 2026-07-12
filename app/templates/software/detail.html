@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% block title %}{{ sw.name }} - Software{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">{{ sw.name }}
+            {% if sw.version %}<span class="text-gray-400 font-normal text-lg">v{{ sw.version }}</span>{% endif %}
+        </h2>
+        <div class="flex items-center gap-2 mt-1">
+            <span class="badge badge-sw-category-{{ sw.category }}">{{ sw.category.replace('_',' ').title() }}</span>
+            <span class="badge badge-sw-license-{{ sw.license_type }}">{{ sw.license_type.replace('_',' ').title() }}</span>
+            {% if sw.is_license_expired %}
+            <span class="badge bg-red-100 text-red-700">License Expired</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="flex gap-2">
+        <a href="{{ url_for('software.edit', software_id=sw.id) }}"
+            class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-4 py-2 rounded-lg flex items-center gap-2">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        {% if current_user.can_manage_system %}
+        <form method="POST" action="{{ url_for('software.delete', software_id=sw.id) }}"
+            onsubmit="return confirm('Delete {{ sw.name }}?')">
+            <button type="submit" class="bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded-lg flex items-center gap-2">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left: Installations -->
+    <div class="lg:col-span-2 space-y-5">
+
+        <!-- Install on Asset Form -->
+        <div class="bg-white rounded-xl shadow p-6">
+            <h4 class="font-semibold text-gray-800 mb-4"><i class="fas fa-download text-blue-500 mr-1"></i> Install on Asset</h4>
+            <form method="POST" action="{{ url_for('software.install', software_id=sw.id) }}" class="flex flex-wrap gap-3 items-end">
+                <div class="flex-1 min-w-40">
+                    <label class="form-label">Select Asset <span class="text-red-500">*</span></label>
+                    <select name="asset_id" required class="form-input">
+                        <option value="">Choose asset...</option>
+                        {% for asset in assets %}
+                        <option value="{{ asset.id }}">{{ asset.name }} ({{ asset.asset_tag }}){% if asset.hostname %} · {{ asset.hostname }}{% endif %}{% if asset.ip_address %} · {{ asset.ip_address }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Install Date</label>
+                    <input type="date" name="installed_date" class="form-input" value="{{ today.strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="flex-1 min-w-40">
+                    <label class="form-label">Notes</label>
+                    <input type="text" name="notes" class="form-input" placeholder="Optional notes">
+                </div>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium">
+                    <i class="fas fa-plus mr-1"></i> Install
+                </button>
+            </form>
+        </div>
+
+        <!-- Installed Assets List -->
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <div class="px-6 py-4 border-b flex items-center justify-between">
+                <h4 class="font-semibold text-gray-800">Installed On ({{ sw.installations|length }})</h4>
+                <span class="text-xs text-gray-500">
+                    {{ sw.installed_count }} / {{ sw.license_seats }} seats used
+                    {% if sw.installed_count > sw.license_seats %}
+                    <span class="text-red-600 font-medium ml-1"><i class="fas fa-exclamation-triangle"></i> Over limit!</span>
+                    {% endif %}
+                </span>
+            </div>
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                    <tr>
+                        <th class="px-5 py-3 text-left">Asset</th>
+                        <th class="px-5 py-3 text-left">Hostname</th>
+                        <th class="px-5 py-3 text-left">IP Address</th>
+                        <th class="px-5 py-3 text-left">User Name</th>
+                        <th class="px-5 py-3 text-left">Department</th>
+                        <th class="px-5 py-3 text-left">Installed Date</th>
+                        <th class="px-5 py-3 text-left">Installed By</th>
+                        <th class="px-5 py-3 text-left">Notes</th>
+                        <th class="px-5 py-3 text-left">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for inst in sw.installations %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-5 py-3">
+                            <a href="{{ url_for('assets.detail', asset_id=inst.asset.id) }}" class="font-medium text-blue-600 hover:underline">
+                                {{ inst.asset.name }}
+                            </a>
+                            <div class="text-xs text-gray-400 font-mono">{{ inst.asset.asset_tag }}</div>
+                        </td>
+                        <td class="px-5 py-3 font-mono text-xs text-gray-600">{{ inst.asset.hostname or '-' }}</td>
+                        <td class="px-5 py-3 font-mono text-xs text-gray-600">{{ inst.asset.ip_address or '-' }}</td>
+                        <td class="px-5 py-3 text-xs text-gray-700">
+                            {% if inst.asset.assigned_user %}
+                            <div class="flex items-center gap-1.5">
+                                <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                    {{ inst.asset.assigned_user.name[0].upper() }}
+                                </div>
+                                {{ inst.asset.assigned_user.name }}
+                            </div>
+                            {% else %}
+                            <span class="text-gray-400">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-gray-500 text-xs">{{ inst.asset.department.name if inst.asset.department else '-' }}</td>
+                        <td class="px-5 py-3 text-gray-500 text-xs">{{ inst.installed_date.strftime('%d %b %Y') if inst.installed_date else '-' }}</td>
+                        <td class="px-5 py-3 text-gray-500 text-xs">{{ inst.installed_by.name if inst.installed_by else '-' }}</td>
+                        <td class="px-5 py-3 text-gray-500 text-xs">{{ inst.notes or '-' }}</td>
+                        <td class="px-5 py-3">
+                            <form method="POST" action="{{ url_for('software.uninstall', install_id=inst.id) }}"
+                                onsubmit="return confirm('Remove from {{ inst.asset.name }}?')">
+                                <button type="submit" class="text-xs text-red-500 hover:underline">
+                                    <i class="fas fa-times mr-1"></i>Remove
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="9" class="px-6 py-6 text-center text-gray-400">Not installed on any asset yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Right: Software Info -->
+    <div class="space-y-5">
+        <div class="bg-white rounded-xl shadow p-5">
+            <div class="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-compact-disc text-indigo-500 text-2xl"></i>
+            </div>
+            <h4 class="font-semibold text-gray-800 mb-4 text-center">Software Details</h4>
+            <dl class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Vendor</dt>
+                    <dd class="font-medium text-gray-800">{{ sw.vendor or '-' }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Version</dt>
+                    <dd class="font-mono text-gray-800">{{ sw.version or '-' }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">License Type</dt>
+                    <dd><span class="badge badge-sw-license-{{ sw.license_type }}">{{ sw.license_type.replace('_',' ').title() }}</span></dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Total Seats</dt>
+                    <dd class="font-medium text-gray-800">{{ sw.license_seats }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Used Seats</dt>
+                    <dd class="font-medium {% if sw.installed_count > sw.license_seats %}text-red-600{% else %}text-green-600{% endif %}">
+                        {{ sw.installed_count }}
+                    </dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">License Expiry</dt>
+                    <dd class="{% if sw.is_license_expired %}text-red-600 font-medium{% else %}text-gray-800{% endif %}">
+                        {{ sw.license_expiry.strftime('%d %b %Y') if sw.license_expiry else 'No expiry' }}
+                    </dd>
+                </div>
+                {% if sw.license_key %}
+                <div class="pt-2 border-t">
+                    <dt class="text-gray-500 text-xs mb-1">License Key</dt>
+                    <dd class="font-mono text-xs bg-gray-50 p-2 rounded break-all">{{ sw.license_key }}</dd>
+                </div>
+                {% endif %}
+                {% if sw.notes %}
+                <div class="pt-2 border-t">
+                    <dt class="text-gray-500 text-xs mb-1">Notes</dt>
+                    <dd class="text-sm text-gray-700">{{ sw.notes }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+
+        <!-- License usage bar -->
+        <div class="bg-white rounded-xl shadow p-5">
+            <h4 class="font-semibold text-gray-800 mb-3 text-sm">License Usage</h4>
+            {% set pct = ((sw.installed_count / sw.license_seats) * 100) | round | int if sw.license_seats > 0 else 0 %}
+            <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+                <span>{{ sw.installed_count }} used</span>
+                <span>{{ sw.license_seats }} total</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-3">
+                <div class="h-3 rounded-full {% if pct > 100 %}bg-red-500{% elif pct > 80 %}bg-yellow-500{% else %}bg-green-500{% endif %}"
+                    style="width: {{ [pct, 100] | min }}%"></div>
+            </div>
+            <p class="text-xs text-center mt-1 {% if pct > 100 %}text-red-600{% else %}text-gray-400{% endif %}">{{ pct }}% used</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

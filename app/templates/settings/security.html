@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}Security Settings - IT HelpDesk{% endblock %}
+{% block content %}
+
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 flex-wrap mb-2">
+                <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">Account Security</span>
+                <span class="text-xs text-gray-400">Authenticator app based login protection</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900">Multi-Factor Authentication</h1>
+            <p class="text-sm text-gray-500 mt-1">Protect your HelpDesk account with a second verification step.</p>
+        </div>
+        <a href="{{ url_for('settings.index') }}" class="inline-flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
+            <i class="fas fa-arrow-left"></i> Back to Settings
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
+        <section class="bg-white rounded-2xl shadow p-6 space-y-5">
+            <div class="flex items-start justify-between gap-4 border-b border-gray-100 pb-4">
+                <div>
+                    <h2 class="font-semibold text-gray-900">Two-Factor Status</h2>
+                    <p class="text-xs text-gray-400 mt-1">Use Google Authenticator, Microsoft Authenticator, Authy, or any TOTP app.</p>
+                </div>
+                {% if current_user.two_factor_enabled %}
+                <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Enabled</span>
+                {% else %}
+                <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">Disabled</span>
+                {% endif %}
+            </div>
+
+            {% if backup_codes %}
+            <div class="border border-amber-200 bg-amber-50 rounded-2xl p-4">
+                <h3 class="font-semibold text-amber-900 flex items-center gap-2"><i class="fas fa-key"></i> Save These Backup Codes</h3>
+                <p class="text-sm text-amber-700 mt-1">Each code works once if your phone is unavailable. They will not be shown again.</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+                    {% for code in backup_codes %}
+                    <code class="bg-white border border-amber-100 rounded-lg px-3 py-2 text-sm text-amber-900 text-center">{{ code }}</code>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not can_manage_mfa %}
+            <div class="border border-blue-100 bg-blue-50 rounded-2xl p-4">
+                <h3 class="font-semibold text-blue-900 flex items-center gap-2"><i class="fas fa-user-shield"></i> Admin Controlled</h3>
+                <p class="text-sm text-blue-700 mt-1">Only an administrator can enable, disable, reset, or require MFA for user accounts.</p>
+                {% if current_user.two_factor_enabled %}
+                <p class="text-xs text-blue-600 mt-3">Your MFA is enabled. Contact an administrator if you need it reset.</p>
+                {% elif current_user.two_factor_required %}
+                <p class="text-xs text-blue-600 mt-3">MFA setup is required for your account.</p>
+                {% else %}
+                <p class="text-xs text-blue-600 mt-3">MFA is not currently required for your account.</p>
+                {% endif %}
+            </div>
+            {% elif not current_user.two_factor_enabled %}
+            <form method="POST" class="space-y-5">
+                <input type="hidden" name="action" value="enable">
+                <input type="hidden" name="setup_secret" value="{{ setup_secret }}">
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="border border-gray-100 rounded-2xl p-4">
+                        <h3 class="font-semibold text-gray-900">1. Add This Secret</h3>
+                        <p class="text-sm text-gray-500 mt-1">Open your authenticator app and add a new account using this setup key.</p>
+                        <div class="mt-4 bg-slate-900 text-white rounded-xl p-4">
+                            <p class="text-xs text-slate-400 mb-1">Setup Key</p>
+                            <code class="block text-lg font-semibold tracking-widest break-all">{{ setup_secret }}</code>
+                        </div>
+                    </div>
+                    <div class="border border-gray-100 rounded-2xl p-4">
+                        <h3 class="font-semibold text-gray-900">2. Optional URI</h3>
+                        <p class="text-sm text-gray-500 mt-1">Some apps can import this URI directly.</p>
+                        <textarea class="form-input mt-4 text-xs font-mono h-28" readonly>{{ provisioning_uri }}</textarea>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label">3. Enter 6-Digit Code <span class="text-red-500">*</span></label>
+                    <input type="text" name="code" required inputmode="numeric" autocomplete="one-time-code"
+                        class="form-input max-w-xs tracking-[0.35em] text-lg font-semibold" maxlength="6" placeholder="000000">
+                </div>
+
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold inline-flex items-center gap-2">
+                    <i class="fas fa-shield-halved"></i> Enable Two-Factor
+                </button>
+            </form>
+            {% else %}
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="border border-green-100 bg-green-50 rounded-2xl p-4">
+                    <h3 class="font-semibold text-green-900 flex items-center gap-2"><i class="fas fa-circle-check"></i> Login Protection Active</h3>
+                    <p class="text-sm text-green-700 mt-1">Your account will ask for an authenticator code after password login.</p>
+                    <p class="text-xs text-green-600 mt-3">Backup codes remaining: <strong>{{ backup_code_count }}</strong></p>
+                </div>
+                <form method="POST" class="border border-amber-100 bg-amber-50 rounded-2xl p-4 space-y-3">
+                    <input type="hidden" name="action" value="regenerate_backup">
+                    <h3 class="font-semibold text-amber-900">Regenerate Backup Codes</h3>
+                    <p class="text-sm text-amber-700">Old backup codes will stop working.</p>
+                    <input type="password" name="password" required class="form-input" placeholder="Confirm current password">
+                    <button class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                        Generate New Codes
+                    </button>
+                </form>
+            </div>
+
+            <form method="POST" class="border border-red-100 bg-red-50 rounded-2xl p-4 space-y-3">
+                <input type="hidden" name="action" value="disable">
+                <h3 class="font-semibold text-red-900">Disable Two-Factor Authentication</h3>
+                <p class="text-sm text-red-700">Password-only login will be allowed again for this account.</p>
+                <input type="password" name="password" required class="form-input max-w-sm" placeholder="Confirm current password">
+                <button class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                    Disable Two-Factor
+                </button>
+            </form>
+            {% endif %}
+        </section>
+
+        <aside class="space-y-4">
+            <div class="bg-slate-900 text-white rounded-2xl shadow p-5">
+                <div class="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center">
+                    <i class="fas fa-mobile-screen-button"></i>
+                </div>
+                <h3 class="font-semibold mt-4">Recommended Apps</h3>
+                <div class="mt-3 space-y-2 text-sm text-slate-300">
+                    <p>Google Authenticator</p>
+                    <p>Microsoft Authenticator</p>
+                    <p>Authy</p>
+                    <p>1Password / Bitwarden TOTP</p>
+                </div>
+            </div>
+            <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 text-sm text-blue-800">
+                <p class="font-semibold mb-1"><i class="fas fa-circle-info mr-1"></i> Important</p>
+                <p class="text-blue-700">Keep backup codes safely. If you lose your phone and codes, an admin will need to reset 2FA for your account.</p>
+            </div>
+        </aside>
+    </div>
+</div>
+
+{% endblock %}

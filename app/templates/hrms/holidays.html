@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Holiday Calendar{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">HRMS</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">Holiday Calendar</h1>
+            <p class="text-sm text-gray-500 mt-1">Maintain company holidays by year, location, and type.</p>
+        </div>
+        <form method="GET" class="flex gap-2 items-center">
+            <input type="number" name="year" value="{{ year }}" class="filter-select w-28">
+            <button class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-filter"></i> Year</button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-6">
+        {% if current_user.can_manage_hrms %}
+        <form method="POST" class="bg-white rounded-2xl shadow p-5 space-y-4">
+            <h2 class="font-semibold text-gray-800">Add Holiday</h2>
+            <div><label class="form-label">Holiday Name</label><input type="text" name="name" required class="form-input" placeholder="Independence Day"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="form-label">Date</label><input type="date" name="holiday_date" required class="form-input"></div>
+                <div>
+                    <label class="form-label">Type</label>
+                    <select name="holiday_type" class="form-input">
+                        {% for value, label in [('public','Public'),('company','Company'),('optional','Optional'),('regional','Regional')] %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div><label class="form-label">Location</label><input type="text" name="location" class="form-input" placeholder="All / Mumbai / Remote"></div>
+            <div><label class="form-label">Description</label><input type="text" name="description" class="form-input" placeholder="Optional note"></div>
+            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg"><i class="fas fa-plus mr-1"></i> Add Holiday</button>
+        </form>
+        {% endif %}
+
+        <div class="bg-white rounded-2xl shadow overflow-hidden {% if not current_user.can_manage_hrms %}xl:col-span-2{% endif %}">
+            <div class="px-5 py-4 border-b border-gray-100">
+                <h2 class="font-semibold text-gray-800">{{ year }} Holidays</h2>
+                <p class="text-xs text-gray-400 mt-1">{{ holidays|length }} holiday{{ '' if holidays|length == 1 else 's' }}</p>
+            </div>
+            <div class="divide-y divide-gray-100">
+                {% for holiday in holidays %}
+                <div class="p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="font-semibold text-gray-900">{{ holiday.name }}</h3>
+                            <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{{ holiday.holiday_type.replace('_',' ').title() }}</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">{{ holiday.holiday_date.strftime('%A, %d %b %Y') }}{% if holiday.location %} &bull; {{ holiday.location }}{% endif %}</p>
+                        {% if holiday.description %}<p class="text-xs text-gray-400 mt-1">{{ holiday.description }}</p>{% endif %}
+                    </div>
+                    {% if current_user.can_manage_hrms %}
+                    <form method="POST" action="{{ url_for('hrms.delete_holiday', holiday_id=holiday.id) }}" onsubmit="return confirm('Delete this holiday?')">
+                        <button class="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold px-3 py-2 rounded-lg"><i class="fas fa-trash"></i></button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="p-10 text-center text-gray-400">No holidays added for {{ year }}.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

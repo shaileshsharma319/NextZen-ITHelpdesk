@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Set Up MFA - IT HelpDesk{% endblock %}
+{% block auth_content %}
+<div class="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-10">
+    <div class="w-full max-w-2xl">
+        <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-7 sm:p-8">
+            <div class="mb-7 text-center">
+                <div class="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+                    <i class="fas fa-shield-halved text-xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900 mt-4">{{ 'MFA Enabled' if setup_complete else 'Set Up Multi-Factor Authentication' }}</h1>
+                <p class="text-sm text-gray-500 mt-1">{{ 'Save your backup codes before continuing.' if setup_complete else 'Your administrator requires MFA for this account.' }}</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="mb-5 space-y-2">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium">
+                    <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'danger' %}fa-times-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            {% if setup_complete %}
+            <div class="border border-amber-200 bg-amber-50 rounded-2xl p-4">
+                <h2 class="font-semibold text-amber-900 flex items-center gap-2"><i class="fas fa-key"></i> Backup Codes</h2>
+                <p class="text-sm text-amber-700 mt-1">Each code works once if your phone is unavailable. They will not be shown again.</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+                    {% for code in backup_codes %}
+                    <code class="bg-white border border-amber-100 rounded-lg px-3 py-2 text-sm text-amber-900 text-center">{{ code }}</code>
+                    {% endfor %}
+                </div>
+            </div>
+            <a href="{{ next_url if next_url else url_for('dashboard.index') }}" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg inline-flex items-center justify-center gap-2">
+                Continue to HelpDesk
+            </a>
+            {% else %}
+            <form method="POST" class="space-y-5">
+                <input type="hidden" name="setup_secret" value="{{ setup_secret }}">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="border border-gray-100 rounded-2xl p-4">
+                        <h2 class="font-semibold text-gray-900">1. Add Setup Key</h2>
+                        <p class="text-sm text-gray-500 mt-1">Open Google Authenticator, Microsoft Authenticator, Authy, or any TOTP app.</p>
+                        <div class="mt-4 bg-slate-900 text-white rounded-xl p-4">
+                            <p class="text-xs text-slate-400 mb-1">Setup Key</p>
+                            <code class="block text-lg font-semibold tracking-widest break-all">{{ setup_secret }}</code>
+                        </div>
+                    </div>
+                    <div class="border border-gray-100 rounded-2xl p-4">
+                        <h2 class="font-semibold text-gray-900">2. Optional URI</h2>
+                        <p class="text-sm text-gray-500 mt-1">Some apps can import this directly.</p>
+                        <textarea class="form-input mt-4 text-xs font-mono h-28" readonly>{{ provisioning_uri }}</textarea>
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label">3. Enter 6-Digit Code <span class="text-red-500">*</span></label>
+                    <input type="text" name="code" required autofocus inputmode="numeric" autocomplete="one-time-code"
+                        class="form-input max-w-xs tracking-[0.35em] text-lg font-semibold" maxlength="6" placeholder="000000">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition duration-200 inline-flex items-center justify-center gap-2">
+                    <i class="fas fa-shield-halved"></i> Enable MFA & Continue
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

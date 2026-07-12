@@ -1,0 +1,456 @@
+{% extends 'base.html' %}
+{% block title %}Add Software - IT HelpDesk{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">Add Software</h2>
+        <p class="text-gray-500 text-sm mt-1" id="step_subtitle">Step 1 of 2 — Select assets to install on</p>
+    </div>
+    <a href="{{ url_for('software.list') }}" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+        <i class="fas fa-arrow-left"></i> Cancel
+    </a>
+</div>
+
+<!-- Step indicators -->
+<div class="flex items-center gap-3 mb-6">
+    <div class="flex items-center gap-2" id="ind_1">
+        <div class="w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</div>
+        <span class="text-sm font-medium text-blue-600">Select Assets</span>
+    </div>
+    <div class="flex-1 h-px bg-gray-200 mx-1"></div>
+    <div class="flex items-center gap-2 opacity-40" id="ind_2">
+        <div class="w-7 h-7 rounded-full bg-gray-400 text-white text-xs font-bold flex items-center justify-center">2</div>
+        <span class="text-sm font-medium text-gray-500">Software Info</span>
+    </div>
+</div>
+
+<form method="POST" id="sw_form">
+
+<!-- ══════════════════════════════════════
+     STEP 1 — Asset Selection
+══════════════════════════════════════ -->
+<div id="step1">
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="px-5 py-4 border-b flex items-center justify-between">
+            <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-server text-blue-500"></i> Select Assets
+                <span id="selected_count" class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full hidden">0 selected</span>
+            </h3>
+            <label class="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
+                <input type="checkbox" id="chk_all" class="w-4 h-4 rounded text-blue-600"> Select All
+            </label>
+        </div>
+
+        <!-- Filters -->
+        <div class="px-5 py-3 border-b bg-gray-50 flex flex-wrap gap-3">
+            <input type="text" id="asset_search" placeholder="Search user, hostname, IP, asset name..."
+                class="form-input text-xs py-1.5 flex-1 min-w-48" oninput="filterAssets()">
+            <select id="f_type" class="filter-select text-xs py-1.5" onchange="filterAssets()">
+                <option value="">All Types</option>
+                <option value="computer">Computer</option>
+                <option value="server">Server</option>
+                <option value="monitor">Monitor</option>
+                <option value="printer">Printer</option>
+                <option value="network">Network</option>
+                <option value="other">Other</option>
+            </select>
+            <select id="f_status" class="filter-select text-xs py-1.5" onchange="filterAssets()">
+                <option value="">All Status</option>
+                <option value="available">Available</option>
+                <option value="in_use">In Use</option>
+                <option value="under_repair">Under Repair</option>
+                <option value="retired">Retired</option>
+            </select>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                    <tr>
+                        <th class="px-3 py-3 text-center w-10"></th>
+                        <th class="px-3 py-3 text-left">User</th>
+                        <th class="px-3 py-3 text-left">Asset / Tag</th>
+                        <th class="px-3 py-3 text-left">Hostname</th>
+                        <th class="px-3 py-3 text-left">IP Address</th>
+                        <th class="px-3 py-3 text-left">Brand / Model</th>
+                        <th class="px-3 py-3 text-left">Type</th>
+                        <th class="px-3 py-3 text-left">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="asset_tbody" class="divide-y divide-gray-100">
+                    <tr><td colspan="8" class="px-6 py-10 text-center text-gray-400">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>Loading assets...
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Step 1 footer -->
+        <div class="px-5 py-4 border-t bg-gray-50 flex items-center justify-between">
+            <span class="text-sm text-gray-500" id="footer_count">No assets selected</span>
+            <button type="button" onclick="goToStep2()"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                Next: Software Info <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- validation message -->
+    <p id="asset_error" class="hidden text-red-500 text-sm mt-2 flex items-center gap-1">
+        <i class="fas fa-exclamation-circle"></i> Please select at least one asset before continuing.
+    </p>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     STEP 2 — Software Information
+══════════════════════════════════════ -->
+<div id="step2" class="hidden">
+    <!-- Selected assets summary bar -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 mb-5 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-sm text-blue-700">
+            <i class="fas fa-server"></i>
+            <span id="summary_text" class="font-medium"></span>
+        </div>
+        <button type="button" onclick="goToStep1()"
+            class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+            <i class="fas fa-edit"></i> Change
+        </button>
+    </div>
+
+    <div class="max-w-xl bg-white rounded-xl shadow p-6">
+        <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <i class="fas fa-compact-disc text-indigo-500"></i> Software Information
+        </h3>
+        <div class="space-y-4">
+
+            <!-- Software Name searchable dropdown -->
+            <div>
+                <label class="form-label">Software Name <span class="text-red-500">*</span></label>
+                <div class="relative" id="sw_dropdown_wrap">
+                    <input type="text" id="sw_search" autocomplete="off"
+                        class="form-input pr-8" placeholder="Type to search or create new..."
+                        oninput="filterSwList()" onfocus="openSwList()">
+                    <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                    <input type="hidden" name="name" id="sw_name_val">
+                    <ul id="sw_list"
+                        class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-56 overflow-y-auto hidden text-sm">
+                        <li id="sw_create_new"
+                            class="hidden px-3 py-2 cursor-pointer hover:bg-green-50 border-b border-gray-100 flex items-center gap-2 text-green-700 font-medium"
+                            onclick="createNewSw()">
+                            <i class="fas fa-plus-circle text-green-500"></i>
+                            <span>Create new: "<span id="sw_create_label"></span>"</span>
+                        </li>
+                        <!-- populated by JS from swData -->
+                    </ul>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="form-label">Version</label>
+                    <input type="text" name="version" id="sw_version" class="form-input" placeholder="e.g. 2021">
+                </div>
+                <div>
+                    <label class="form-label">Vendor</label>
+                    <input type="text" name="vendor" id="sw_vendor" class="form-input" placeholder="e.g. Microsoft">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="form-label">Category <span class="text-red-500">*</span></label>
+                    <select name="category" id="sw_category" required class="form-input">
+                        <option value="os">OS</option>
+                        <option value="office">Office</option>
+                        <option value="security">Security</option>
+                        <option value="development">Development</option>
+                        <option value="design">Design</option>
+                        <option value="communication">Communication</option>
+                        <option value="utility">Utility</option>
+                        <option value="other" selected>Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">License Type <span class="text-red-500">*</span></label>
+                    <select name="license_type" id="sw_license" required class="form-input">
+                        <option value="free">Free</option>
+                        <option value="open_source">Open Source</option>
+                        <option value="commercial" selected>Commercial</option>
+                        <option value="subscription">Subscription</option>
+                        <option value="trial">Trial</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="form-label">License Edition</label>
+                    <select name="license_edition" id="sw_edition" class="form-input">
+                        <option value="">— None —</option>
+                        <option value="msdn">MSDN</option>
+                        <option value="oem_pro">OEM Pro</option>
+                        <option value="oem_sl">OEM Single Language</option>
+                        <option value="retail">Retail</option>
+                        <option value="volume">Volume License</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">License Seats</label>
+                    <input type="number" name="license_seats" id="license_seats" class="form-input" value="1" min="1">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="form-label">Install Date</label>
+                    <input type="date" name="installed_date" class="form-input" value="{{ today }}">
+                </div>
+                <div>
+                    <label class="form-label">License Expiry</label>
+                    <input type="date" name="license_expiry" class="form-input">
+                </div>
+            </div>
+
+            <div>
+                <label class="form-label">License Key</label>
+                <input type="text" name="license_key" class="form-input font-mono text-xs" placeholder="XXXXX-XXXXX-XXXXX">
+            </div>
+            <div>
+                <label class="form-label">Notes</label>
+                <textarea name="notes" rows="2" class="form-input" placeholder="Additional notes..."></textarea>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="goToStep1()"
+                    class="border border-gray-300 text-gray-600 px-5 py-2.5 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+                <button type="submit"
+                    class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 rounded-lg text-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-save"></i> Add Software
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</form>
+
+<script>
+const statusBadge = {
+    available:    'bg-green-100 text-green-700',
+    in_use:       'bg-blue-100 text-blue-700',
+    under_repair: 'bg-yellow-100 text-yellow-700',
+    retired:      'bg-gray-100 text-gray-500',
+};
+
+// ── Asset table ──
+function buildRow(a) {
+    const tr = document.createElement('tr');
+    tr.className = 'cursor-pointer asset-row hover:bg-blue-50';
+    tr.dataset.search = `${a.user_name} ${a.name} ${a.hostname} ${a.ip_address} ${a.brand} ${a.model}`.toLowerCase();
+    tr.dataset.type   = a.asset_type;
+    tr.dataset.status = a.status;
+    tr.onclick = () => toggleRow(tr);
+    const userCell = a.user_name
+        ? `<div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">${a.user_initial}</div><span class="text-xs font-medium text-gray-800">${a.user_name}</span></div>`
+        : `<span class="text-gray-400 text-xs">Unassigned</span>`;
+    const hostname   = a.hostname   ? `<span class="font-mono text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${a.hostname}</span>` : `-`;
+    const ip         = a.ip_address ? `<span class="font-mono text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded">${a.ip_address}</span>` : `-`;
+    const brandModel = [a.brand, a.model].filter(Boolean).join(' / ') || '-';
+    const badge      = statusBadge[a.status] || 'bg-gray-100 text-gray-500';
+    const statusLbl  = a.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    tr.innerHTML = `
+        <td class="px-3 py-2.5 text-center"><input type="checkbox" name="asset_ids" value="${a.id}" class="row-chk w-4 h-4 rounded text-blue-600" onclick="event.stopPropagation()"></td>
+        <td class="px-3 py-2.5">${userCell}</td>
+        <td class="px-3 py-2.5 text-xs font-medium text-gray-800">${a.name}<div class="text-gray-400 font-mono">${a.asset_tag}</div></td>
+        <td class="px-3 py-2.5">${hostname}</td>
+        <td class="px-3 py-2.5">${ip}</td>
+        <td class="px-3 py-2.5 text-xs text-gray-600">${brandModel}</td>
+        <td class="px-3 py-2.5 text-xs text-gray-500">${a.asset_type.charAt(0).toUpperCase()+a.asset_type.slice(1)}</td>
+        <td class="px-3 py-2.5"><span class="text-xs px-2 py-0.5 rounded font-medium ${badge}">${statusLbl}</span></td>`;
+    return tr;
+}
+function renderTable(assets) {
+    const tbody = document.getElementById('asset_tbody');
+    tbody.innerHTML = '';
+    if (!assets.length) { tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-10 text-center text-gray-400">No assets found.</td></tr>`; return; }
+    assets.forEach(a => tbody.appendChild(buildRow(a)));
+    updateCount();
+}
+function filterAssets() {
+    const q = document.getElementById('asset_search').value.toLowerCase();
+    const t = document.getElementById('f_type').value;
+    const s = document.getElementById('f_status').value;
+    document.querySelectorAll('.asset-row').forEach(row => {
+        row.style.display = ((!q || row.dataset.search.includes(q)) && (!t || row.dataset.type === t) && (!s || row.dataset.status === s)) ? '' : 'none';
+    });
+}
+function toggleRow(row) {
+    const cb = row.querySelector('.row-chk');
+    cb.checked = !cb.checked;
+    row.classList.toggle('bg-blue-50', cb.checked);
+    updateCount();
+}
+function updateCount() {
+    const n = document.querySelectorAll('.row-chk:checked').length;
+    const el = document.getElementById('selected_count');
+    el.textContent = `${n} selected`;
+    el.classList.toggle('hidden', n === 0);
+    document.getElementById('footer_count').textContent = n > 0 ? `${n} asset${n !== 1 ? 's' : ''} selected` : 'No assets selected';
+    document.getElementById('license_seats').value = n > 0 ? n : 1;
+}
+document.getElementById('chk_all').addEventListener('change', function () {
+    document.querySelectorAll('.asset-row').forEach(row => {
+        if (row.style.display === 'none') return;
+        const cb = row.querySelector('.row-chk');
+        cb.checked = this.checked;
+        row.classList.toggle('bg-blue-50', this.checked);
+    });
+    updateCount();
+});
+
+// ── Step navigation ──
+function goToStep2() {
+    const n = document.querySelectorAll('.row-chk:checked').length;
+    if (n === 0) { document.getElementById('asset_error').classList.remove('hidden'); return; }
+    document.getElementById('asset_error').classList.add('hidden');
+    document.getElementById('step1').classList.add('hidden');
+    document.getElementById('step2').classList.remove('hidden');
+    document.getElementById('step_subtitle').textContent = 'Step 2 of 2 — Fill in software details';
+    document.getElementById('ind_1').classList.add('opacity-40');
+    const ind2 = document.getElementById('ind_2');
+    ind2.classList.remove('opacity-40');
+    ind2.querySelector('div').classList.replace('bg-gray-400', 'bg-blue-600');
+    ind2.querySelector('span').classList.replace('text-gray-500', 'text-blue-600');
+    document.getElementById('summary_text').textContent = `${n} asset${n !== 1 ? 's' : ''} selected`;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => document.getElementById('sw_search').focus(), 100);
+}
+function goToStep1() {
+    document.getElementById('step2').classList.add('hidden');
+    document.getElementById('step1').classList.remove('hidden');
+    document.getElementById('step_subtitle').textContent = 'Step 1 of 2 — Select assets to install on';
+    document.getElementById('ind_1').classList.remove('opacity-40');
+    const ind2 = document.getElementById('ind_2');
+    ind2.classList.add('opacity-40');
+    ind2.querySelector('div').classList.replace('bg-blue-600', 'bg-gray-400');
+    ind2.querySelector('span').classList.replace('text-blue-600', 'text-gray-500');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Software dropdown ──
+const swList = [
+{% for sw in all_software %}
+  { name: {{ sw.name|tojson }}, version: {{ (sw.version or '')|tojson }}, vendor: {{ (sw.vendor or '')|tojson }}, category: {{ sw.category|tojson }}, license: {{ sw.license_type|tojson }}, edition: {{ (sw.license_edition or '')|tojson }} },
+{% endfor %}
+];
+
+const catColors = { os:'bg-blue-100 text-blue-600', development:'bg-purple-100 text-purple-600', office:'bg-green-100 text-green-600', security:'bg-red-100 text-red-600', utility:'bg-yellow-100 text-yellow-600' };
+
+// Build items once on page load (ul is in DOM even if parent is hidden)
+(function buildSwItems() {
+    const ul = document.getElementById('sw_list');
+    swList.forEach(sw => {
+        const li = document.createElement('li');
+        li.className = 'sw-option px-3 py-2 hover:bg-blue-50 cursor-pointer flex items-center justify-between';
+        Object.assign(li.dataset, { name: sw.name, version: sw.version, vendor: sw.vendor, category: sw.category, license: sw.license, edition: sw.edition });
+        li.onclick = () => selectSw(li);
+        const color = catColors[sw.category] || 'bg-gray-100 text-gray-500';
+        li.innerHTML = `<span><span class="font-medium text-gray-800">${sw.name}</span>${sw.version ? `<span class="text-gray-400 ml-1 text-xs">${sw.version}</span>` : ''}</span><span class="text-xs px-1.5 py-0.5 rounded ${color}">${sw.category}</span>`;
+        ul.appendChild(li);
+    });
+})();
+
+function openSwList() {
+    // show all items when opening with empty query
+    if (!document.getElementById('sw_search').value.trim()) {
+        document.querySelectorAll('.sw-option').forEach(li => li.style.display = '');
+        document.getElementById('sw_create_new').classList.add('hidden');
+    }
+    document.getElementById('sw_list').classList.remove('hidden');
+}
+
+function filterSwList() {
+    const q = document.getElementById('sw_search').value.trim().toLowerCase();
+    // clear selection only when user actively changes text
+    document.getElementById('sw_name_val').value = '';
+    let visible = 0;
+    document.querySelectorAll('.sw-option').forEach(li => {
+        const match = !q
+            || li.dataset.name.toLowerCase().includes(q)
+            || li.dataset.version.toLowerCase().includes(q)
+            || li.dataset.vendor.toLowerCase().includes(q);
+        li.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    const createEl = document.getElementById('sw_create_new');
+    if (q && visible === 0) {
+        document.getElementById('sw_create_label').textContent = document.getElementById('sw_search').value.trim();
+        createEl.classList.remove('hidden');
+    } else {
+        createEl.classList.add('hidden');
+    }
+    document.getElementById('sw_list').classList.remove('hidden');
+}
+
+function selectSw(li) {
+    document.getElementById('sw_search').value   = li.dataset.name + (li.dataset.version ? ' — ' + li.dataset.version : '');
+    document.getElementById('sw_name_val').value = li.dataset.name;
+    document.getElementById('sw_version').value  = li.dataset.version;
+    document.getElementById('sw_vendor').value   = li.dataset.vendor;
+    document.getElementById('sw_category').value = li.dataset.category;
+    document.getElementById('sw_license').value  = li.dataset.license;
+    document.getElementById('sw_edition').value  = li.dataset.edition || '';
+    document.getElementById('sw_list').classList.add('hidden');
+    document.getElementById('sw_search').classList.remove('border-red-500');
+}
+
+function createNewSw() {
+    const q = document.getElementById('sw_search').value.trim();
+    document.getElementById('sw_name_val').value = q;
+    document.getElementById('sw_list').classList.add('hidden');
+    document.getElementById('sw_version').value  = '';
+    document.getElementById('sw_vendor').value   = '';
+    document.getElementById('sw_category').value = 'other';
+    document.getElementById('sw_license').value  = 'commercial';
+    document.getElementById('sw_edition').value  = '';
+}
+
+document.addEventListener('click', e => {
+    if (!document.getElementById('sw_dropdown_wrap').contains(e.target)) {
+        document.getElementById('sw_list').classList.add('hidden');
+        if (!document.getElementById('sw_name_val').value) {
+            document.getElementById('sw_search').value = '';
+            document.getElementById('sw_create_new').classList.add('hidden');
+        }
+    }
+});
+
+// ── Form validation ──
+document.getElementById('sw_form').addEventListener('submit', function(e) {
+    if (document.querySelectorAll('.row-chk:checked').length === 0) {
+        e.preventDefault(); goToStep1();
+        document.getElementById('asset_error').classList.remove('hidden'); return;
+    }
+    if (!document.getElementById('sw_name_val').value) {
+        e.preventDefault();
+        document.getElementById('sw_search').classList.add('border-red-500');
+        document.getElementById('sw_search').focus();
+    }
+});
+
+// Load assets
+fetch('{{ url_for("software.api_assets") }}')
+    .then(r => r.json())
+    .then(data => renderTable(data))
+    .catch(() => {
+        document.getElementById('asset_tbody').innerHTML =
+            `<tr><td colspan="8" class="px-6 py-10 text-center text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Failed to load assets.</td></tr>`;
+    });
+</script>
+{% endblock %}

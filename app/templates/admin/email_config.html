@@ -1,0 +1,412 @@
+{% extends 'base.html' %}
+{% block title %}Email Configuration - IT HelpDesk{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <i class="fas fa-envelope-circle-check text-blue-500"></i> Email Configuration
+        </h2>
+        <p class="text-gray-400 text-sm mt-0.5">Configure SMTP for replies and IMAP for inbound email tickets.</p>
+    </div>
+    <a href="{{ url_for('admin.users') }}" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+</div>
+
+<form method="POST" id="email_form">
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+
+    <!-- LEFT: SMTP Settings -->
+    <div class="xl:col-span-2 space-y-5">
+
+
+        <!-- Provider Presets -->
+        <div class="bg-white rounded-2xl shadow p-5">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-wand-magic-sparkles text-blue-500"></i> Quick Provider Setup
+                    </h3>
+                    <p class="text-xs text-gray-400 mt-1">Pick your mail provider to auto-fill SMTP and IMAP settings. You can edit anything after selecting.</p>
+                </div>
+                <span id="provider_selected" class="text-xs bg-gray-100 text-gray-500 px-3 py-1.5 rounded-full">Manual setup</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3" id="provider_presets">
+                <button type="button" class="email-provider-card" data-provider="gmail"><span class="provider-icon bg-red-50 text-red-600"><i class="fas fa-envelope"></i></span><span>Gmail</span></button>
+                <button type="button" class="email-provider-card" data-provider="hostinger"><span class="provider-icon bg-violet-50 text-violet-600"><i class="fas fa-h"></i></span><span>Hostinger</span></button>
+                <button type="button" class="email-provider-card" data-provider="m365"><span class="provider-icon bg-blue-50 text-blue-600"><i class="fab fa-microsoft"></i></span><span>MS 365</span></button>
+                <button type="button" class="email-provider-card" data-provider="zoho"><span class="provider-icon bg-green-50 text-green-600"><i class="fas fa-z"></i></span><span>Zoho</span></button>
+                <button type="button" class="email-provider-card" data-provider="yahoo"><span class="provider-icon bg-purple-50 text-purple-600"><i class="fab fa-yahoo"></i></span><span>Yahoo</span></button>
+                <button type="button" class="email-provider-card" data-provider="custom"><span class="provider-icon bg-gray-100 text-gray-600"><i class="fas fa-sliders"></i></span><span>Custom</span></button>
+            </div>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3 items-end bg-gray-50 border border-gray-100 rounded-xl p-3">
+                <div>
+                    <label class="form-label">Helpdesk Email Address</label>
+                    <input type="email" id="preset_email" class="form-input" placeholder="helpdesk@company.com" value="{{ cfg.mail_username if cfg and cfg.mail_username else '' }}">
+                </div>
+                <button type="button" id="sync_email_btn" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg inline-flex items-center justify-center gap-2">
+                    <i class="fas fa-arrows-rotate"></i> Apply Email
+                </button>
+            </div>
+            <p class="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-3">
+                <i class="fas fa-key mr-1"></i> For Gmail, Yahoo, Zoho, and Microsoft 365, use an app password or mailbox password allowed by your tenant policy.
+            </p>
+        </div>
+
+        <!-- SMTP Server -->
+        <div class="bg-white rounded-2xl shadow p-5">
+            <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <i class="fas fa-server text-blue-500"></i> SMTP Server Settings
+            </h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="col-span-2">
+                        <label class="form-label">Mail Server <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <i class="fas fa-server absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                            <input type="text" name="mail_server" id="mail_server" required class="form-input pl-9"
+                                placeholder="smtp.gmail.com / smtp.hostinger.com"
+                                value="{{ cfg.mail_server if cfg else '' }}">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Port <span class="text-red-500">*</span></label>
+                        <input type="number" name="mail_port" id="mail_port" required class="form-input"
+                            placeholder="587" value="{{ cfg.mail_port if cfg else 587 }}">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Username / Email <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <i class="fas fa-at absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                            <input type="text" name="mail_username" id="mail_username" required class="form-input pl-9"
+                                placeholder="helpdesk@company.com"
+                                value="{{ cfg.mail_username if cfg else '' }}">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Password
+                            {% if cfg %}<span class="text-xs text-gray-400 font-normal">(leave blank to keep current)</span>{% endif %}
+                        </label>
+                        <div class="relative">
+                            <i class="fas fa-lock absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                            <input type="password" name="mail_password" id="mail_password"
+                                class="form-input pl-9 pr-9" placeholder="••••••••"
+                                {% if not cfg %}required{% endif %}>
+                            <button type="button" onclick="togglePwd()" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-eye text-sm" id="pwd_icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Encryption -->
+                <div>
+                    <label class="form-label">Encryption</label>
+                    <div class="flex gap-4 mt-1">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" name="mail_use_tls" id="tls_chk" class="sr-only peer"
+                                    {% if cfg and cfg.mail_use_tls %}checked{% elif not cfg %}checked{% endif %}
+                                    onchange="if(this.checked) document.getElementById('ssl_chk').checked=false">
+                                <div class="w-10 h-5 bg-gray-200 peer-checked:bg-blue-500 rounded-full transition-colors"></div>
+                                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-all peer-checked:translate-x-5"></div>
+                            </div>
+                            <span class="text-sm text-gray-700 font-medium">TLS (STARTTLS) — port 587</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" name="mail_use_ssl" id="ssl_chk" class="sr-only peer"
+                                    {% if cfg and cfg.mail_use_ssl %}checked{% endif %}
+                                    onchange="if(this.checked) document.getElementById('tls_chk').checked=false">
+                                <div class="w-10 h-5 bg-gray-200 peer-checked:bg-blue-500 rounded-full transition-colors"></div>
+                                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-all peer-checked:translate-x-5"></div>
+                            </div>
+                            <span class="text-sm text-gray-700 font-medium">SSL — port 465</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <div class="bg-white rounded-2xl shadow p-5">
+            <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <i class="fas fa-inbox text-amber-500"></i> Inbound Email Ticket Settings
+            </h3>
+            <div class="space-y-4">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <div class="relative mt-0.5 flex-shrink-0">
+                        <input type="checkbox" name="inbound_enabled" id="inbound_enabled" class="sr-only peer" {% if cfg and cfg.inbound_enabled %}checked{% endif %}>
+                        <div class="w-10 h-5 bg-gray-200 peer-checked:bg-blue-500 rounded-full transition-colors"></div>
+                        <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-all peer-checked:translate-x-5"></div>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">Enable Auto Ticket From Email</p>
+                        <p class="text-xs text-gray-400">Unread inbox messages become helpdesk tickets automatically every 10 minutes, and can still be fetched manually.</p>
+                    </div>
+                </label>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="col-span-2">
+                        <label class="form-label">IMAP Server</label>
+                        <input type="text" name="imap_server" id="imap_server" class="form-input" placeholder="imap.gmail.com / imap.hostinger.com" value="{{ cfg.imap_server if cfg and cfg.imap_server else '' }}">
+                    </div>
+                    <div>
+                        <label class="form-label">Port</label>
+                        <input type="number" name="imap_port" id="imap_port" class="form-input" value="{{ cfg.imap_port if cfg else 993 }}">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">IMAP Username</label>
+                        <input type="text" name="imap_username" id="imap_username" class="form-input" placeholder="helpdesk@company.com" value="{{ cfg.imap_username if cfg and cfg.imap_username else '' }}">
+                    </div>
+                    <div>
+                        <label class="form-label">IMAP Password {% if cfg and cfg.imap_password %}<span class="text-xs text-gray-400 font-normal">(leave blank to keep current)</span>{% endif %}</label>
+                        <input type="password" name="imap_password" id="imap_password" class="form-input" placeholder="Mailbox password / app password">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Mailbox Folder</label>
+                        <input type="text" name="imap_folder" id="imap_folder" class="form-input" value="{{ cfg.imap_folder if cfg and cfg.imap_folder else 'INBOX' }}">
+                    </div>
+                    <label class="flex items-center gap-2 cursor-pointer pt-7">
+                        <input type="checkbox" name="imap_use_ssl" id="imap_use_ssl" class="rounded border-gray-300" {% if cfg and cfg.imap_use_ssl %}checked{% elif not cfg %}checked{% endif %}>
+                        <span class="text-sm text-gray-700 font-medium">Use SSL</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sender Identity -->
+        <div class="bg-white rounded-2xl shadow p-5">
+            <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <i class="fas fa-id-card text-indigo-500"></i> Sender Identity
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="form-label">From Name</label>
+                    <input type="text" name="mail_from_name" id="mail_from_name" class="form-input"
+                        placeholder="IT HelpDesk"
+                        value="{{ cfg.mail_from_name if cfg else 'IT HelpDesk' }}">
+                </div>
+                <div>
+                    <label class="form-label">From Email <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <i class="fas fa-envelope absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                        <input type="email" name="mail_from" id="mail_from" required class="form-input pl-9"
+                            placeholder="helpdesk@company.com"
+                            value="{{ cfg.mail_from if cfg else '' }}">
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4">
+                <label class="form-label">CC All Notifications To
+                    <span class="text-xs text-gray-400 font-normal">(optional, comma-separated)</span>
+                </label>
+                <div class="relative">
+                    <i class="fas fa-user-group absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                    <input type="text" name="notify_cc" class="form-input pl-9"
+                        placeholder="manager@company.com, archive@company.com"
+                        value="{{ cfg.notify_cc if cfg and cfg.notify_cc else '' }}">
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- RIGHT: Notification Toggles + Actions -->
+    <div class="xl:col-span-1 space-y-4">
+
+        <!-- Status badge -->
+        <div class="bg-white rounded-2xl shadow p-4">
+            <p class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <i class="fas fa-circle-dot text-green-500"></i> Configuration Status
+            </p>
+            {% if cfg %}
+            <div class="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
+                <i class="fas fa-check-circle text-green-500"></i>
+                <span class="text-sm text-green-700 font-medium">Config saved</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">Last updated: {{ cfg.updated_at.strftime('%d %b %Y %H:%M') if cfg.updated_at else '—' }}</p>
+            {% else %}
+            <div class="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5">
+                <i class="fas fa-exclamation-triangle text-yellow-500"></i>
+                <span class="text-sm text-yellow-700 font-medium">Not configured yet</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Notification toggles -->
+        <div class="bg-white rounded-2xl shadow p-4">
+            <p class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <i class="fas fa-bell text-blue-500"></i> Notifications
+            </p>
+            <div class="space-y-3">
+                {% set toggles = [
+                    ('notify_ticket_created',  'Ticket Created',  'Send email when a new ticket is submitted', 'fa-plus-circle', 'text-green-500'),
+                    ('notify_ticket_updated',  'Ticket Updated',  'Notify user on status changes',             'fa-rotate',      'text-blue-500'),
+                    ('notify_ticket_assigned', 'Ticket Assigned', 'Notify staff when assigned a ticket',       'fa-user-check',  'text-indigo-500'),
+                    ('notify_email_ticket',    'Email Ticket',    'Notify staff on inbound email tickets',     'fa-envelope',    'text-amber-500'),
+                ] %}
+                {% for name, label, desc, icon, color in toggles %}
+                <label class="flex items-start gap-3 cursor-pointer group">
+                    <div class="relative mt-0.5 flex-shrink-0">
+                        <input type="checkbox" name="{{ name }}" class="sr-only peer"
+                            {% if cfg and cfg|attr(name) %}checked{% elif not cfg %}checked{% endif %}>
+                        <div class="w-10 h-5 bg-gray-200 peer-checked:bg-blue-500 rounded-full transition-colors"></div>
+                        <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-all peer-checked:translate-x-5"></div>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                            <i class="fas {{ icon }} {{ color }} text-xs"></i> {{ label }}
+                        </p>
+                        <p class="text-xs text-gray-400">{{ desc }}</p>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Quick guide -->
+        <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-xs text-blue-700 space-y-1">
+            <p class="font-semibold text-blue-800 mb-1"><i class="fas fa-circle-info mr-1"></i> Common SMTP Settings</p>
+            <p><span class="font-medium">Gmail:</span> smtp.gmail.com : 587 (TLS)</p>
+            <p><span class="font-medium">Outlook:</span> smtp.office365.com : 587 (TLS)</p>
+            <p><span class="font-medium">Hostinger:</span> smtp.hostinger.com : 587 (TLS)</p>
+            <p><span class="font-medium">Yahoo:</span> smtp.mail.yahoo.com : 465 (SSL)</p>
+            <p><span class="font-medium">Zoho:</span> smtp.zoho.com : 587 (TLS)</p>
+            <p class="font-semibold text-blue-800 mt-2">IMAP examples</p>
+            <p><span class="font-medium">Gmail:</span> imap.gmail.com : 993 (SSL)</p>
+            <p><span class="font-medium">Outlook:</span> outlook.office365.com : 993 (SSL)</p>
+            <p><span class="font-medium">Zoho:</span> imap.zoho.com : 993 (SSL)</p>
+            <p class="text-blue-500">If your SMTP provider says a recipient is not on the allow list, add that recipient in the provider dashboard or switch from a sandbox/test SMTP account to production SMTP.</p>
+            <p class="text-blue-500 mt-1">⚠ Server field = hostname only, not email address.</p>
+        </div>
+
+        <!-- Actions -->
+        <div class="space-y-2">
+            <button type="submit" name="action" value="save"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow transition-all">
+                <i class="fas fa-floppy-disk"></i> Save Configuration
+            </button>
+            <div class="flex gap-2">
+                <input type="email" name="test_recipient" class="form-input flex-1 text-sm"
+                    placeholder="Test recipient email" value="{{ current_user.email }}">
+                <button type="submit" name="action" value="test"
+                    class="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow flex-shrink-0">
+                    <i class="fas fa-paper-plane"></i> Test
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+</form>
+
+<script>
+function togglePwd() {
+    const inp  = document.getElementById('mail_password');
+    const icon = document.getElementById('pwd_icon');
+    if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.className = 'fas fa-eye-slash text-sm';
+    } else {
+        inp.type = 'password';
+        icon.className = 'fas fa-eye text-sm';
+    }
+}
+
+const EMAIL_PROVIDER_PRESETS = {
+    gmail: {
+        label: 'Gmail', smtp: 'smtp.gmail.com', smtpPort: 587, smtpMode: 'tls',
+        imap: 'imap.gmail.com', imapPort: 993, imapSsl: true, folder: 'INBOX'
+    },
+    hostinger: {
+        label: 'Hostinger', smtp: 'smtp.hostinger.com', smtpPort: 587, smtpMode: 'tls',
+        imap: 'imap.hostinger.com', imapPort: 993, imapSsl: true, folder: 'INBOX'
+    },
+    m365: {
+        label: 'Microsoft 365', smtp: 'smtp.office365.com', smtpPort: 587, smtpMode: 'tls',
+        imap: 'outlook.office365.com', imapPort: 993, imapSsl: true, folder: 'INBOX'
+    },
+    zoho: {
+        label: 'Zoho Mail', smtp: 'smtp.zoho.com', smtpPort: 587, smtpMode: 'tls',
+        imap: 'imap.zoho.com', imapPort: 993, imapSsl: true, folder: 'INBOX'
+    },
+    yahoo: {
+        label: 'Yahoo Mail', smtp: 'smtp.mail.yahoo.com', smtpPort: 465, smtpMode: 'ssl',
+        imap: 'imap.mail.yahoo.com', imapPort: 993, imapSsl: true, folder: 'INBOX'
+    },
+    custom: {
+        label: 'Custom', smtp: '', smtpPort: 587, smtpMode: 'tls',
+        imap: '', imapPort: 993, imapSsl: true, folder: 'INBOX'
+    }
+};
+
+function field(id) {
+    return document.getElementById(id);
+}
+
+function setCheckbox(id, checked) {
+    const input = field(id);
+    if (input) input.checked = checked;
+}
+
+function applyProvider(providerKey) {
+    const preset = EMAIL_PROVIDER_PRESETS[providerKey];
+    if (!preset) return;
+    document.querySelectorAll('.email-provider-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.provider === providerKey);
+    });
+    const selected = field('provider_selected');
+    if (selected) selected.textContent = preset.label + ' settings selected';
+
+    const email = (field('preset_email')?.value || '').trim();
+    if (field('mail_server')) field('mail_server').value = preset.smtp;
+    if (field('mail_port')) field('mail_port').value = preset.smtpPort;
+    setCheckbox('tls_chk', preset.smtpMode === 'tls');
+    setCheckbox('ssl_chk', preset.smtpMode === 'ssl');
+
+    if (field('imap_server')) field('imap_server').value = preset.imap;
+    if (field('imap_port')) field('imap_port').value = preset.imapPort;
+    if (field('imap_folder')) field('imap_folder').value = preset.folder;
+    setCheckbox('imap_use_ssl', preset.imapSsl);
+    setCheckbox('inbound_enabled', providerKey !== 'custom');
+
+    if (email) applyHelpdeskEmail(email);
+}
+
+function applyHelpdeskEmail(email) {
+    ['mail_username', 'mail_from', 'imap_username'].forEach(id => {
+        const input = field(id);
+        if (input) input.value = email;
+    });
+    const fromName = field('mail_from_name');
+    if (fromName && !fromName.value.trim()) fromName.value = 'IT HelpDesk';
+}
+
+document.querySelectorAll('.email-provider-card').forEach(card => {
+    card.addEventListener('click', () => applyProvider(card.dataset.provider));
+});
+const syncBtn = field('sync_email_btn');
+if (syncBtn) {
+    syncBtn.addEventListener('click', () => {
+        const email = (field('preset_email')?.value || '').trim();
+        if (email) applyHelpdeskEmail(email);
+    });
+}
+const presetEmail = field('preset_email');
+if (presetEmail) {
+    presetEmail.addEventListener('change', () => {
+        if (presetEmail.value.trim()) applyHelpdeskEmail(presetEmail.value.trim());
+    });
+}
+
+</script>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Edit Ticket #{{ ticket.id }} - IT HelpDesk{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Edit Ticket #{{ ticket.id }}</h2>
+</div>
+
+<div class="bg-white rounded-xl shadow p-6 max-w-2xl">
+    <form method="POST" class="space-y-5">
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">Type</label>
+                <select name="ticket_type" class="form-input">
+                    {% for t in ['incident','request','problem','change'] %}
+                    <option value="{{ t }}" {% if ticket.ticket_type == t %}selected{% endif %}>{{ t.title() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Priority</label>
+                <select name="priority" class="form-input">
+                    {% for p in ['low','medium','high','critical'] %}
+                    <option value="{{ p }}" {% if ticket.priority == p %}selected{% endif %}>{{ p.title() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div>
+            <label class="form-label">Source</label>
+            <select name="source" class="form-input">
+                {% for val, (lbl, icon, cls) in source_labels.items() %}
+                <option value="{{ val }}" {% if ticket.source == val %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Title</label>
+            <input type="text" name="title" value="{{ ticket.title }}" required class="form-input">
+        </div>
+        <div>
+            <label class="form-label">Category</label>
+            <select name="category" id="category_select" class="form-input" onchange="updateSubcategory()">
+                <option value="">Select category</option>
+                {% for cat in category_map.keys() %}
+                <option value="{{ cat }}" {% if ticket.category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Sub Category</label>
+            <select name="sub_category" id="sub_category_select" class="form-input" data-current="{{ ticket.sub_category or '' }}">
+                <option value="">Select category first</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Tags</label>
+            <input type="text" name="tags" value="{{ ticket.tags or '' }}" class="form-input" placeholder="vpn, printer, password reset">
+            <p class="text-xs text-gray-400 mt-1">Comma separated labels.</p>
+        </div>
+        {% if current_user.can_manage_helpdesk %}
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">Status</label>
+                <select name="status" class="form-input">
+                    {% for s in ['open','in_progress','resolved','closed'] %}
+                    <option value="{{ s }}" {% if ticket.status == s %}selected{% endif %}>{{ s.replace('_',' ').title() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Ownership</label>
+                <select name="assigned_to" class="form-input">
+                    <option value="">Unassigned</option>
+                    {% for staff in staff_users %}
+                    <option value="{{ staff.id }}" {% if ticket.assigned_to == staff.id %}selected{% endif %}>{{ staff.name }} - {{ staff.role_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div>
+            <label class="form-label">Linked Asset</label>
+            <select name="asset_id" class="form-input">
+                <option value="">None</option>
+                {% for asset in all_assets %}
+                <option value="{{ asset.id }}" {% if ticket.asset_id == asset.id %}selected{% endif %}>
+                    {{ asset.name }} ({{ asset.asset_tag }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="hidden">
+            <label class="form-label">Linked Application</label>
+            <select name="software_id" id="software_select" class="form-input">
+                <option value="">None</option>
+                {% for sw in all_software %}
+                <option value="{{ sw.id }}" {% if ticket.software_id == sw.id %}selected{% endif %}>{{ sw.name }}{% if sw.version %} {{ sw.version }}{% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div>
+            <label class="form-label">Description</label>
+            <textarea name="description" required rows="5" class="form-input">{{ ticket.description }}</textarea>
+        </div>
+        <div class="flex gap-3">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm">
+                Save Changes
+            </button>
+            <a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}"
+                class="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg text-sm hover:bg-gray-50">Cancel</a>
+        </div>
+    </form>
+</div>
+<script>
+const SUB_CATS = {{ category_map|tojson }};
+const SOFTWARE_SUBCATEGORY_MAP = {{ software_subcategory_map|tojson }};
+function updateSubcategory() {
+    const cat = document.getElementById('category_select').value;
+    const sel = document.getElementById('sub_category_select');
+    const current = sel.dataset.current || '';
+    sel.innerHTML = '<option value="">Select</option>';
+    (SUB_CATS[cat] || []).forEach((name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        if (name === current) option.selected = true;
+        sel.appendChild(option);
+    });
+    syncSoftwareFromSubcategory();
+}
+function syncSoftwareFromSubcategory() {
+    const category = document.getElementById('category_select').value;
+    const subCategory = document.getElementById('sub_category_select').value;
+    const softwareSelect = document.getElementById('software_select');
+    if (!softwareSelect || category !== 'Software Installation') return;
+    const softwareId = SOFTWARE_SUBCATEGORY_MAP[subCategory];
+    softwareSelect.value = softwareId ? String(softwareId) : '';
+}
+document.getElementById('sub_category_select').addEventListener('change', syncSoftwareFromSubcategory);
+document.addEventListener('DOMContentLoaded', updateSubcategory);
+</script>
+{% endblock %}

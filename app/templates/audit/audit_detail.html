@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}{{ audit_plan.title }}{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full">{{ audit_plan.audit_type.title() }} Audit</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">{{ audit_plan.title }}</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ audit_plan.status.replace('_',' ').title() }}{% if audit_plan.scheduled_date %} &bull; {{ audit_plan.scheduled_date.strftime('%d %b %Y') }}{% endif %}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ url_for('audit.index') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-arrow-left"></i> Back</a>
+            {% if can_manage %}
+            <a href="{{ url_for('audit.edit_audit', audit_id=audit_plan.id) }}" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-pen"></i> Edit</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-6">
+        <div class="space-y-6">
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800">Audit Scope</h2>
+                <p class="text-sm text-gray-600 whitespace-pre-line mt-3">{{ audit_plan.scope or 'No scope added.' }}</p>
+                {% if audit_plan.notes %}
+                <h2 class="font-semibold text-gray-800 mt-6">Notes</h2>
+                <p class="text-sm text-gray-600 whitespace-pre-line mt-3">{{ audit_plan.notes }}</p>
+                {% endif %}
+            </div>
+
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+                    <div>
+                        <h2 class="font-semibold text-gray-800">Findings</h2>
+                        <p class="text-xs text-gray-400 mt-1">Non-conformities, observations, and improvement items.</p>
+                    </div>
+                </div>
+                <div class="divide-y divide-gray-100">
+                    {% for finding in audit_plan.findings %}
+                    <div class="p-5 space-y-4">
+                        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                            <div>
+                                <h3 class="font-semibold text-gray-900">{{ finding.title }}</h3>
+                                <p class="text-sm text-gray-500 mt-1">{{ finding.description or 'No description.' }}</p>
+                                {% if finding.recommendation %}<p class="text-sm text-gray-600 mt-2"><strong>Recommendation:</strong> {{ finding.recommendation }}</p>{% endif %}
+                            </div>
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold self-start {% if finding.severity == 'critical' %}bg-red-100 text-red-700{% elif finding.severity == 'high' %}bg-orange-100 text-orange-700{% elif finding.severity == 'low' %}bg-green-100 text-green-700{% else %}bg-amber-100 text-amber-700{% endif %}">{{ finding.severity.title() }}</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-gray-500">
+                            <span>Status: <strong class="text-gray-700">{{ finding.status.replace('_',' ').title() }}</strong></span>
+                            <span>Owner: <strong class="text-gray-700">{{ finding.owner.name if finding.owner else 'Unassigned' }}</strong></span>
+                            <span>Due: <strong class="{% if finding.is_overdue %}text-red-600{% else %}text-gray-700{% endif %}">{{ finding.due_date.strftime('%d %b %Y') if finding.due_date else '-' }}</strong></span>
+                        </div>
+
+                        {% if can_manage %}
+                        <details class="border border-gray-100 rounded-xl p-3">
+                            <summary class="cursor-pointer text-sm font-semibold text-gray-700">Update Finding</summary>
+                            <form method="POST" action="{{ url_for('audit.update_finding', finding_id=finding.id) }}" class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                                <input type="text" name="title" value="{{ finding.title }}" class="form-input md:col-span-3" required>
+                                <select name="severity" class="filter-select">{% for item in ['low','medium','high','critical'] %}<option value="{{ item }}" {% if finding.severity == item %}selected{% endif %}>{{ item.title() }}</option>{% endfor %}</select>
+                                <select name="status" class="filter-select">{% for item in ['open','in_progress','accepted','closed'] %}<option value="{{ item }}" {% if finding.status == item %}selected{% endif %}>{{ item.replace('_',' ').title() }}</option>{% endfor %}</select>
+                                <input type="date" name="due_date" value="{{ finding.due_date.isoformat() if finding.due_date else '' }}" class="form-input">
+                                <select name="owner_id" class="filter-select md:col-span-3"><option value="">Unassigned</option>{% for user in users %}<option value="{{ user.id }}" {% if finding.owner_id == user.id %}selected{% endif %}>{{ user.name }}</option>{% endfor %}</select>
+                                <select name="policy_id" class="filter-select md:col-span-3"><option value="">No policy</option>{% for policy in policies %}<option value="{{ policy.id }}" {% if finding.policy_id == policy.id %}selected{% endif %}>{{ policy.code }} - {{ policy.title }}</option>{% endfor %}</select>
+                                <textarea name="description" rows="3" class="form-input md:col-span-3">{{ finding.description or '' }}</textarea>
+                                <textarea name="recommendation" rows="3" class="form-input md:col-span-3">{{ finding.recommendation or '' }}</textarea>
+                                <button type="submit" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white justify-center md:col-span-3"><i class="fas fa-save"></i> Save Finding</button>
+                            </form>
+                        </details>
+
+                        <details class="border border-gray-100 rounded-xl p-3">
+                            <summary class="cursor-pointer text-sm font-semibold text-gray-700">Add Corrective Action</summary>
+                            <form method="POST" action="{{ url_for('audit.create_action', finding_id=finding.id) }}" class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                                <input type="text" name="title" class="form-input md:col-span-3" placeholder="Action title" required>
+                                <select name="owner_id" class="filter-select"><option value="">Owner</option>{% for user in users %}<option value="{{ user.id }}">{{ user.name }}</option>{% endfor %}</select>
+                                <select name="status" class="filter-select"><option value="open">Open</option><option value="in_progress">In Progress</option><option value="completed">Completed</option><option value="blocked">Blocked</option></select>
+                                <input type="date" name="due_date" class="form-input">
+                                <textarea name="notes" rows="2" class="form-input md:col-span-3" placeholder="Notes"></textarea>
+                                <button type="submit" class="ticket-action-btn bg-emerald-600 hover:bg-emerald-700 text-white justify-center md:col-span-3"><i class="fas fa-plus"></i> Add Action</button>
+                            </form>
+                        </details>
+                        {% endif %}
+
+                        {% if finding.actions %}
+                        <div class="bg-gray-50 rounded-xl p-3">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-2">Corrective Actions</h4>
+                            <div class="space-y-2">
+                                {% for action in finding.actions %}
+                                <form method="POST" action="{{ url_for('audit.update_action', action_id=action.id) }}" class="bg-white border border-gray-100 rounded-lg p-3 grid grid-cols-1 md:grid-cols-4 gap-2">
+                                    <input type="text" name="title" value="{{ action.title }}" class="form-input md:col-span-2" required>
+                                    <select name="owner_id" class="filter-select"><option value="">Unassigned</option>{% for user in users %}<option value="{{ user.id }}" {% if action.owner_id == user.id %}selected{% endif %}>{{ user.name }}</option>{% endfor %}</select>
+                                    <select name="status" class="filter-select">{% for item in ['open','in_progress','completed','blocked'] %}<option value="{{ item }}" {% if action.status == item %}selected{% endif %}>{{ item.replace('_',' ').title() }}</option>{% endfor %}</select>
+                                    <input type="date" name="due_date" value="{{ action.due_date.isoformat() if action.due_date else '' }}" class="form-input">
+                                    <textarea name="notes" rows="1" class="form-input md:col-span-2">{{ action.notes or '' }}</textarea>
+                                    <button type="submit" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50 justify-center"><i class="fas fa-save"></i> Update</button>
+                                </form>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="p-10 text-center text-gray-400">No findings added.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <aside class="space-y-4">
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800">Audit Details</h2>
+                <dl class="mt-4 space-y-3 text-sm">
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Auditor</dt><dd class="text-gray-800 text-right">{{ audit_plan.auditor.name if audit_plan.auditor else 'Unassigned' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Department</dt><dd class="text-gray-800">{{ audit_plan.department.name if audit_plan.department else 'All' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Policy</dt><dd class="text-gray-800 text-right">{{ audit_plan.policy.code if audit_plan.policy else '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Score</dt><dd class="text-gray-800">{{ audit_plan.score if audit_plan.score is not none else '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Completed</dt><dd class="text-gray-800">{{ audit_plan.completed_date.strftime('%d %b %Y') if audit_plan.completed_date else '-' }}</dd></div>
+                </dl>
+            </div>
+
+            {% if can_manage %}
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800">Add Finding</h2>
+                <form method="POST" action="{{ url_for('audit.create_finding', audit_id=audit_plan.id) }}" class="space-y-3 mt-4">
+                    <input type="text" name="title" class="form-input" placeholder="Finding title" required>
+                    <select name="severity" class="filter-select w-full"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="critical">Critical</option></select>
+                    <select name="status" class="filter-select w-full"><option value="open">Open</option><option value="in_progress">In Progress</option><option value="accepted">Accepted Risk</option><option value="closed">Closed</option></select>
+                    <select name="owner_id" class="filter-select w-full"><option value="">Owner</option>{% for user in users %}<option value="{{ user.id }}">{{ user.name }}</option>{% endfor %}</select>
+                    <select name="policy_id" class="filter-select w-full"><option value="">Related policy</option>{% for policy in policies %}<option value="{{ policy.id }}" {% if audit_plan.policy_id == policy.id %}selected{% endif %}>{{ policy.code }} - {{ policy.title }}</option>{% endfor %}</select>
+                    <input type="date" name="due_date" class="form-input">
+                    <textarea name="description" rows="3" class="form-input" placeholder="Finding details"></textarea>
+                    <textarea name="recommendation" rows="3" class="form-input" placeholder="Recommendation"></textarea>
+                    <button type="submit" class="ticket-action-btn bg-red-600 hover:bg-red-700 text-white w-full justify-center"><i class="fas fa-plus"></i> Add Finding</button>
+                </form>
+            </div>
+            {% endif %}
+        </aside>
+    </div>
+</div>
+{% endblock %}

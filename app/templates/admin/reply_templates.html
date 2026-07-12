@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}Reply Templates{% endblock %}
+
+{% block content %}
+{% set tpl = editing_template %}
+<div class="space-y-6">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <p class="text-sm text-blue-600 font-semibold">Helpdesk Productivity</p>
+            <h1 class="text-2xl font-bold text-gray-900">Reply Templates</h1>
+            <p class="text-sm text-gray-500 mt-1">Manage canned public replies and private internal note templates used on ticket reply pages.</p>
+        </div>
+        <a href="{{ url_for('tickets.list') }}" class="inline-flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
+            <i class="fas fa-comments"></i> Ticket Replies
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,430px)_1fr] gap-6">
+        <form method="POST" class="bg-white rounded-2xl shadow p-5 space-y-5">
+            <input type="hidden" name="template_id" value="{{ tpl.id if tpl else '' }}">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="font-semibold text-gray-800">{{ 'Edit Template' if tpl else 'Create Template' }}</h2>
+                    <p class="text-xs text-gray-400 mt-1">HTML is supported for rich reply content.</p>
+                </div>
+                <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                    <input type="checkbox" name="is_active" class="rounded border-gray-300" {% if not tpl or tpl.is_active %}checked{% endif %}>
+                    Active
+                </label>
+            </div>
+
+            <div>
+                <label class="form-label">Template Name <span class="text-red-500">*</span></label>
+                <input type="text" name="name" class="form-input" required placeholder="Request More Information" value="{{ tpl.name if tpl else '' }}">
+            </div>
+
+            <div>
+                <label class="form-label">Category</label>
+                <input type="text" name="category" class="form-input" list="templateCategories" placeholder="Public / Internal / Troubleshooting" value="{{ tpl.category if tpl and tpl.category else '' }}">
+                <datalist id="templateCategories">
+                    {% for category in categories %}<option value="{{ category }}">{% endfor %}
+                </datalist>
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                <input type="checkbox" name="is_internal" class="rounded border-gray-300" {% if tpl and tpl.is_internal %}checked{% endif %}>
+                Internal note template
+            </label>
+
+            <div>
+                <label class="form-label">Template Body <span class="text-red-500">*</span></label>
+                <textarea name="body" rows="12" class="form-input font-mono text-sm" required placeholder="<p>Hi,</p><p>Thank you for contacting IT HelpDesk...</p>">{{ tpl.body if tpl else '' }}</textarea>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2">
+                <button type="submit" name="action" value="save" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-lg text-sm inline-flex items-center justify-center gap-2">
+                    <i class="fas fa-save"></i> Save Template
+                </button>
+                {% if tpl %}
+                <a href="{{ url_for('admin.reply_templates') }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2.5 rounded-lg text-sm inline-flex items-center justify-center gap-2">
+                    Cancel
+                </a>
+                {% endif %}
+            </div>
+        </form>
+
+        <div class="bg-white rounded-2xl shadow overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+                <div>
+                    <h2 class="font-semibold text-gray-800">Available Templates</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ templates|length }} template{{ '' if templates|length == 1 else 's' }} configured</p>
+                </div>
+                <span class="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full">Used in reply editor</span>
+            </div>
+            <div class="divide-y divide-gray-100">
+                {% for item in templates %}
+                <div class="p-5">
+                    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="font-semibold text-gray-900">{{ item.name }}</h3>
+                                {% if item.category %}<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ item.category }}</span>{% endif %}
+                                <span class="text-xs px-2 py-0.5 rounded-full {% if item.is_internal %}bg-amber-50 text-amber-700{% else %}bg-green-50 text-green-700{% endif %}">
+                                    {{ 'Internal' if item.is_internal else 'Public' }}
+                                </span>
+                                <span class="text-xs px-2 py-0.5 rounded-full {% if item.is_active %}bg-blue-50 text-blue-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                                    {{ 'Active' if item.is_active else 'Disabled' }}
+                                </span>
+                            </div>
+                            <div class="mt-3 text-sm text-gray-600 border border-gray-100 rounded-lg bg-gray-50 px-3 py-2 max-h-32 overflow-auto">
+                                {{ item.body | email_content }}
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2">Updated {{ item.updated_at.strftime('%d %b %Y %H:%M') }}</p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <a href="{{ url_for('admin.reply_templates', edit=item.id) }}" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-xs font-semibold">
+                                <i class="fas fa-pen"></i>
+                            </a>
+                            <form method="POST">
+                                <input type="hidden" name="template_id" value="{{ item.id }}">
+                                <button type="submit" name="action" value="toggle" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-xs font-semibold">
+                                    <i class="fas {% if item.is_active %}fa-pause{% else %}fa-play{% endif %}"></i>
+                                </button>
+                            </form>
+                            <form method="POST" onsubmit="return confirm('Delete this reply template?')">
+                                <input type="hidden" name="template_id" value="{{ item.id }}">
+                                <button type="submit" name="action" value="delete" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg text-xs font-semibold">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="p-10 text-center text-gray-400">
+                    <i class="fas fa-message text-3xl mb-3"></i>
+                    <p class="font-semibold text-gray-600">No reply templates yet</p>
+                    <p class="text-sm mt-1">Create common replies for faster ticket updates.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

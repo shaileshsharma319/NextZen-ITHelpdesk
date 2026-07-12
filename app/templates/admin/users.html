@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}Manage Users - IT HelpDesk{% endblock %}
+{% block content %}
+{% set active_filters = q or role or status or department_id %}
+
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 flex-wrap mb-2">
+                <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">User Directory</span>
+                {% if active_filters %}<span class="text-xs text-gray-500">Filtered view</span>{% endif %}
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900">Manage Users</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ users|length }} visible user{{ '' if users|length == 1 else 's' }} from {{ metrics.total }} account profile{{ '' if metrics.total == 1 else 's' }}</p>
+        </div>
+        <a href="{{ url_for('admin.create_user') }}" class="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg shadow-sm">
+            <i class="fas fa-user-plus"></i> Create User
+        </a>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+        {% set cards = [
+            ('Total', metrics.total, 'fa-users', 'blue'),
+            ('Active', metrics.active, 'fa-user-check', 'emerald'),
+            ('Inactive', metrics.inactive, 'fa-user-slash', 'red'),
+            ('Department Admin', metrics.department_admins, 'fa-user-gear', 'sky'),
+            ('Department Basic', metrics.department_basic, 'fa-id-card', 'amber'),
+        ] %}
+        {% for label, value, icon, tone in cards %}
+        <div class="ticket-stat-card ticket-stat-{{ tone }}">
+            <div>
+                <p class="text-xs text-gray-500 font-medium">{{ label }}</p>
+                <p class="text-2xl font-bold text-gray-900 mt-0.5">{{ value }}</p>
+            </div>
+            <span><i class="fas {{ icon }}"></i></span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="ticket-filter-panel">
+        <form method="GET" class="space-y-4">
+            <div class="grid grid-cols-1 xl:grid-cols-[minmax(260px,1fr)_auto] gap-3 items-end">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Search Directory</label>
+                    <div class="relative">
+                        <i class="fas fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                        <input type="text" name="q" value="{{ q }}" class="form-input pl-9" placeholder="Name, email, username, user code, job title, location">
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button type="submit" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-filter"></i> Apply</button>
+                    <a href="{{ url_for('admin.users') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-rotate-left"></i> Reset</a>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Role</label>
+                    <select name="role" class="filter-select w-full">
+                        <option value="">All Roles</option>
+                        {% for value, label in [('department_admin','Department Admin'),('department_basic','Department Basic')] %}
+                        <option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Status</label>
+                    <select name="status" class="filter-select w-full">
+                        <option value="">All Status</option>
+                        <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Department</label>
+                    <select name="department_id" class="filter-select w-full">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if department_id == dept.id %}selected{% endif %}>{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Quick Focus</label>
+                    <div class="ticket-mini-summary">
+                        <span><i class="fas fa-user-check text-green-500"></i> {{ metrics.active }} active</span>
+                        <span><i class="fas fa-user-gear text-blue-500"></i> {{ metrics.department_admins }} department admin</span>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {% if active_filters %}
+    <div class="flex flex-wrap gap-2 text-xs">
+        {% if q %}<span class="active-chip"><i class="fas fa-search"></i> {{ q }}</span>{% endif %}
+        {% if role %}<span class="active-chip">Role: {{ {'department_admin':'Department Admin','department_basic':'Department Basic'}.get(role, role.title()) }}</span>{% endif %}
+        {% if status %}<span class="active-chip">Status: {{ status.title() }}</span>{% endif %}
+        {% if department_id %}
+            {% for dept in departments %}{% if dept.id == department_id %}<span class="active-chip">Department: {{ dept.name }}</span>{% endif %}{% endfor %}
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="ticket-table-card hidden xl:block">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Profile</th>
+                        <th>Contact</th>
+                        <th>Access</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr class="ticket-row">
+                        <td class="min-w-[260px]">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                    {{ user.name[0].upper() }}
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-gray-900 truncate">{{ user.name }}</p>
+                                    <p class="text-xs text-gray-400 font-mono">{{ user.employee_id or 'No User Code' }}</p>
+                                    {% if user.username %}<p class="text-xs text-gray-400">@{{ user.username }}</p>{% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="min-w-[260px]">
+                            <p class="font-medium text-gray-700">{{ user.designation or 'No job title' }}</p>
+                            <p class="text-xs text-gray-500">{{ user.department.name if user.department else 'No department' }}</p>
+                            {% if user.work_location %}<p class="text-xs text-gray-400 mt-2"><i class="fas fa-location-dot mr-1"></i>{{ user.work_location }}{% if user.work_state %}, {{ user.work_state }}{% endif %}{% if user.location_code %} ({{ user.location_code }}){% endif %}</p>{% endif %}
+                        </td>
+                        <td class="min-w-[220px]">
+                            <p class="text-gray-700 break-all">{{ user.email }}</p>
+                            <p class="text-xs text-gray-500">{{ user.phone or 'No phone' }}</p>
+                            {% if user.company_domain %}<p class="text-xs text-blue-600"><i class="fas fa-building mr-1"></i>{{ user.company_domain }}</p>{% endif %}
+                            {% if user.work_location %}<p class="text-xs text-gray-400"><i class="fas fa-location-dot mr-1"></i>{{ user.work_location }}{% if user.work_state %}, {{ user.work_state }}{% endif %}{% if user.location_code %} ({{ user.location_code }}){% endif %}</p>{% endif %}
+                        </td>
+                        <td aria-label="Action">
+                            <span class="px-2 py-1 rounded-full text-xs font-medium
+                                {% if user.role == 'master_admin' %}bg-purple-100 text-purple-700
+                                {% elif user.role == 'admin_staff' %}bg-blue-100 text-blue-700
+                                {% elif user.role in ('hr_admin','hr_staff') %}bg-emerald-100 text-emerald-700
+                                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ user.role_label }}
+                            </span>
+                            <div class="flex flex-wrap gap-1.5 mt-2">
+                                {% if user.allow_helpdesk_admin %}<span class="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">Helpdesk</span>{% endif %}
+                                {% if user.allow_inventory %}<span class="text-[11px] bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full">Inventory</span>{% endif %}
+                                {% if user.allow_licenses %}<span class="text-[11px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">Licenses</span>{% endif %}
+                                {% if user.allow_compliance %}<span class="text-[11px] bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">Compliance</span>{% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="px-2 py-1 rounded-full text-xs font-medium {% if user.is_active %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                                {{ 'Active' if user.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td class="text-gray-500 text-sm">{{ user.date_of_joining.strftime('%d %b %Y') if user.date_of_joining else user.created_at.strftime('%d %b %Y') }}</td>
+                        <td>
+                            <div class="flex items-center justify-end gap-2">
+                                <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="icon-btn" title="Edit"><i class="fas fa-pen"></i></a>
+                                {% if user.id != current_user.id %}
+                                <form method="POST" action="{{ url_for('admin.toggle_user', user_id=user.id) }}">
+                                    <button type="submit" class="icon-btn" title="{{ 'Deactivate' if user.is_active else 'Activate' }}">
+                                        <i class="fas {% if user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}" onsubmit="return confirm('Remove or archive user {{ user.name }}? Users with tickets or linked history will be deactivated safely.')">
+                                    <button type="submit" class="icon-btn text-red-600" title="Remove / Archive"><i class="fas fa-user-slash"></i></button>
+                                </form>
+                                {% else %}
+                                <span class="text-xs text-gray-400">You</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="py-12 text-center text-gray-400">No users found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-3 xl:hidden">
+        {% for user in users %}
+        <article class="ticket-mobile-card">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">{{ user.name[0].upper() }}</div>
+                    <div class="min-w-0">
+                        <h3 class="font-semibold text-gray-900 truncate">{{ user.name }}</h3>
+                        <p class="text-xs text-gray-400 font-mono">{{ user.employee_id or 'No User Code' }}</p>
+                    </div>
+                </div>
+                <span class="px-2 py-1 rounded-full text-xs font-medium {% if user.is_active %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                    {{ 'Active' if user.is_active else 'Inactive' }}
+                </span>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
+                <div><span class="block text-gray-400">Department</span><strong class="text-gray-700">{{ user.department.name if user.department else 'None' }}</strong></div>
+                <div><span class="block text-gray-400">Role</span><strong class="text-gray-700">{{ user.role_label }}</strong></div>
+                <div><span class="block text-gray-400">Company</span><strong class="text-gray-700">{{ user.company_domain or 'None' }}</strong></div>
+                <div><span class="block text-gray-400">Job Title</span><strong class="text-gray-700">{{ user.designation or 'None' }}</strong></div>
+                <div><span class="block text-gray-400">Location</span><strong class="text-gray-700">{{ user.work_location or 'None' }}{% if user.work_state %}, {{ user.work_state }}{% endif %}{% if user.location_code %} ({{ user.location_code }}){% endif %}</strong></div>
+            </div>
+            <div class="flex flex-wrap gap-1.5 mt-3">
+                {% if user.allow_helpdesk_admin %}<span class="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">Helpdesk</span>{% endif %}
+                {% if user.allow_inventory %}<span class="text-[11px] bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full">Inventory</span>{% endif %}
+                {% if user.allow_licenses %}<span class="text-[11px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">Licenses</span>{% endif %}
+                {% if user.allow_compliance %}<span class="text-[11px] bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">Compliance</span>{% endif %}
+            </div>
+            <p class="text-xs text-gray-500 mt-3 break-all"><i class="fas fa-envelope mr-1"></i>{{ user.email }}</p>
+            <div class="flex gap-2 mt-4">
+                <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="ticket-card-btn border border-gray-300 text-gray-700"><i class="fas fa-pen"></i> Edit</a>
+                {% if user.id != current_user.id %}
+                <form method="POST" action="{{ url_for('admin.toggle_user', user_id=user.id) }}" class="flex-1">
+                    <button class="ticket-card-btn bg-blue-600 text-white w-full"><i class="fas {% if user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i> {{ 'Deactivate' if user.is_active else 'Activate' }}</button>
+                </form>
+                {% endif %}
+            </div>
+        </article>
+        {% else %}
+        <div class="ticket-empty-state">
+            <i class="fas fa-users text-3xl text-gray-300"></i>
+            <p class="mt-2 font-semibold text-gray-600">No users found</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

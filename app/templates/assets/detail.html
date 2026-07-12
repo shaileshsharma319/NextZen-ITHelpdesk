@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}{{ asset.name }} - IT HelpDesk{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">{{ asset.name }}</h2>
+        <p class="text-gray-500 text-sm mt-1">Tag: <span class="font-mono font-medium">{{ asset.asset_tag }}</span></p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{{ url_for('assets.edit', asset_id=asset.id) }}"
+            class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-4 py-2 rounded-lg flex items-center gap-2">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        {% if current_user.can_manage_system %}
+        <form method="POST" action="{{ url_for('assets.delete', asset_id=asset.id) }}"
+            onsubmit="return confirm('Delete this asset?')">
+            <button type="submit" class="bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded-lg flex items-center gap-2">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-5">
+        <div class="bg-white rounded-xl shadow p-6">
+            <h4 class="font-semibold text-gray-800 mb-4">Asset Information</h4>
+            <dl class="grid grid-cols-2 gap-4 text-sm">
+                <div><dt class="text-gray-500 text-xs">Type</dt><dd class="font-medium mt-0.5">{{ asset.asset_type.title() }}</dd></div>
+                <div><dt class="text-gray-500 text-xs">Status</dt><dd class="mt-0.5"><span class="badge badge-asset-status-{{ asset.status }}">{{ asset.status.replace('_',' ').title() }}</span></dd></div>
+                <div><dt class="text-gray-500 text-xs">Brand</dt><dd class="font-medium mt-0.5">{{ asset.brand or '-' }}</dd></div>
+                <div><dt class="text-gray-500 text-xs">Model</dt><dd class="font-medium mt-0.5">{{ asset.model or '-' }}</dd></div>
+                <div><dt class="text-gray-500 text-xs">Serial Number</dt><dd class="font-mono mt-0.5">{{ asset.serial_number or '-' }}</dd></div>
+                <div><dt class="text-gray-500 text-xs">Hostname</dt><dd class="font-mono mt-0.5">{{ asset.hostname or '-' }}</dd></div>
+                <div><dt class="text-gray-500 text-xs">IP Address</dt><dd class="font-mono mt-0.5">{{ asset.ip_address or '-' }}</dd></div>
+                <div><dt class="text-gray-500 text-xs">Department</dt><dd class="font-medium mt-0.5">{{ asset.department.name if asset.department else '-' }}</dd></div>
+                <div><dt class="text-gray-500 text-xs">Assigned To</dt><dd class="font-medium mt-0.5">{{ asset.assigned_user.name if asset.assigned_user else 'Unassigned' }}</dd></div>
+                <div><dt class="text-gray-500 text-xs">Purchase Date</dt><dd class="mt-0.5">{{ asset.purchase_date.strftime('%d %b %Y') if asset.purchase_date else '-' }}</dd></div>
+                <div><dt class="text-gray-500 text-xs">Warranty Expiry</dt><dd class="mt-0.5">{{ asset.warranty_expiry.strftime('%d %b %Y') if asset.warranty_expiry else '-' }}</dd></div>
+            </dl>
+            {% if asset.notes %}
+            <div class="mt-4 pt-4 border-t">
+                <dt class="text-gray-500 text-xs mb-1">Notes</dt>
+                <p class="text-sm text-gray-700">{{ asset.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Linked Tickets -->
+        {% if asset.tickets %}
+        <div class="bg-white rounded-xl shadow p-6">
+            <h4 class="font-semibold text-gray-800 mb-4">Linked Tickets ({{ asset.tickets|length }})</h4>
+            <div class="space-y-2">
+                {% for ticket in asset.tickets %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
+                    <div>
+                        <span class="text-gray-400 text-xs">#{{ ticket.id }}</span>
+                        <span class="font-medium text-gray-800 ml-2">{{ ticket.title }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="badge badge-status-{{ ticket.status }}">{{ ticket.status.replace('_',' ').title() }}</span>
+                        <a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}" class="text-blue-600 hover:underline text-xs">View</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <div class="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-laptop text-blue-500 text-2xl"></i>
+            </div>
+            <p class="text-center font-mono text-lg font-bold text-gray-800">{{ asset.asset_tag }}</p>
+            <p class="text-center text-gray-500 text-sm">{{ asset.asset_type.title() }}</p>
+            <div class="mt-4 text-center">
+                <span class="badge badge-asset-status-{{ asset.status }} text-sm px-3 py-1">
+                    {{ asset.status.replace('_',' ').title() }}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

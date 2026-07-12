@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ policy.code }} - {{ policy.title }}</title>
+    <style>
+        body { font-family: Calibri, Arial, sans-serif; color: #111827; line-height: 1.35; margin: 32px 44px; font-size: 14px; }
+        .doc-title { text-align: center; font-size: 22px; font-weight: 700; text-transform: uppercase; margin: 0 0 18px; }
+        .meta-table { width: 100%; border-collapse: collapse; margin: 0 0 22px; font-size: 12px; }
+        .meta-table td { border: 1px solid #9ca3af; padding: 6px 8px; vertical-align: top; }
+        .meta-table .label { width: 18%; background: #f3f4f6; font-weight: 700; }
+        .section { margin: 14px 0 20px; page-break-inside: avoid; }
+        .section-title { font-size: 16px; font-weight: 700; margin: 0 0 8px; }
+        .content { white-space: pre-line; margin: 0 0 10px 22px; }
+        .screenshot { margin: 8px 0 18px 22px; }
+        .screenshot img { max-width: 100%; border: 1px solid #9ca3af; display: block; }
+        .caption { font-size: 12px; color: #4b5563; margin: 0 0 5px; }
+        .attachment-list { margin-left: 22px; }
+        .footer { margin-top: 34px; padding-top: 10px; border-top: 1px solid #d1d5db; font-size: 11px; color: #6b7280; }
+        @media print { body { margin: 18mm; } .section { page-break-inside: avoid; } }
+    </style>
+</head>
+<body>
+    <h1 class="doc-title">{{ policy.title }}</h1>
+    <table class="meta-table">
+        <tr>
+            <td class="label">Policy Code</td><td>{{ policy.code }}</td>
+            <td class="label">Version</td><td>{{ policy.version }}</td>
+        </tr>
+        <tr>
+            <td class="label">Category</td><td>{{ policy.category or '-' }}</td>
+            <td class="label">Risk Level</td><td>{{ policy.risk_level.title() }}</td>
+        </tr>
+        <tr>
+            <td class="label">Owner</td><td>{{ policy.owner.name if policy.owner else 'Unassigned' }}</td>
+            <td class="label">Status</td><td>{{ policy.status.replace('_',' ').title() }}</td>
+        </tr>
+        <tr>
+            <td class="label">Effective Date</td><td>{{ policy.effective_date.strftime('%d %b %Y') if policy.effective_date else '-' }}</td>
+            <td class="label">Review Date</td><td>{{ policy.review_date.strftime('%d %b %Y') if policy.review_date else '-' }}</td>
+        </tr>
+    </table>
+
+    <div class="section">
+        <div class="section-title">1. Purpose / Description :</div>
+        <div class="content">{{ policy.description or 'No description added.' }}</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. Scope :</div>
+        <div class="content">{{ policy.scope or 'No scope added.' }}</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">3. Step by Step Permission Evidence :</div>
+        {% if step_evidence %}
+            {% for item in step_evidence %}
+            <div class="content"><strong>{{ item.text }}</strong></div>
+            {% if item.data_uri %}
+            <div class="screenshot">
+                <img src="{{ item.data_uri }}" alt="{{ item.attachment.original_filename }}">
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% if extra_control_lines %}
+            <div class="content"><strong>Additional Controls :</strong></div>
+            <div class="content">{{ extra_control_lines|join('\n') }}</div>
+            {% endif %}
+        {% else %}
+            <div class="content">{{ policy.controls or 'No controls added.' }}</div>
+        {% endif %}
+    </div>
+
+    {% if remaining_images %}
+    <div class="section">
+        <div class="section-title">4. Additional Screenshots / Evidence :</div>
+        {% for attachment, data_uri in remaining_images %}
+        <div class="screenshot">
+            <div class="caption">{{ loop.index }}. {{ attachment.original_filename }}</div>
+            <img src="{{ data_uri }}" alt="{{ attachment.original_filename }}">
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if file_attachments %}
+    <div class="section">
+        <div class="section-title">{{ 5 if image_attachments else 4 }}. Supporting Files :</div>
+        <ol class="attachment-list">
+            {% for attachment in file_attachments %}
+            <li>{{ attachment.original_filename }}{% if attachment.file_size %} ({{ attachment.file_size // 1024 }} KB){% endif %}</li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        Generated from IT HelpDesk Audit & Policy Management on {{ generated_at.strftime('%d %b %Y %H:%M UTC') }}.
+    </div>
+</body>
+</html>

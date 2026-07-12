@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+{% block title %}Reply - {{ ticket.ticket_number or ('#' ~ ticket.id) }}{% endblock %}
+
+{% block content %}
+{% set replies = ticket.replies | sort(attribute='created_at') %}
+{% set visible_replies = [] %}
+{% for reply in replies %}
+    {% if reply.is_public or current_user.can_manage_helpdesk %}
+        {% set _ = visible_replies.append(reply) %}
+    {% endif %}
+{% endfor %}
+{% set src = ticket.source or 'manual' %}
+{% set lbl, icon, cls = source_labels.get(src, ('Manual','fa-pen','badge-source-manual')) %}
+{% set total_messages = 1 + visible_replies|length %}
+
+<div class="ticket-reply-shell space-y-5">
+    <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+        <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap mb-2">
+                <a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}" class="text-gray-400 hover:text-gray-600 text-sm" title="Back to ticket"><i class="fas fa-arrow-left"></i></a>
+                <span class="font-mono font-bold text-blue-600 text-lg">{{ ticket.ticket_number or ('#' ~ ticket.id) }}</span>
+                <span class="badge badge-type-{{ ticket.ticket_type }}">{{ ticket.ticket_type.title() }}</span>
+                <span class="badge badge-{{ ticket.priority }}">{{ ticket.priority.title() }}</span>
+                <span class="badge badge-status-{{ ticket.status }}">{{ ticket.status.replace('_',' ').title() }}</span>
+                <span class="badge {{ cls }} inline-flex items-center gap-1"><i class="fas {{ icon }}"></i> {{ lbl }}</span>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 leading-tight">{{ ticket.title }}</h2>
+            <p class="text-gray-500 text-sm mt-1">
+                Submitted by <span class="font-medium text-gray-700">{{ ticket.creator.name }}</span>
+                on {{ ticket.created_at.strftime('%d %b %Y %H:%M') }}
+            </p>
+        </div>
+        <div class="flex flex-wrap gap-2 flex-shrink-0">
+            <a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}" class="border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium px-3 py-2 rounded-lg inline-flex items-center gap-2">
+                <i class="fas fa-eye"></i> Ticket View
+            </a>
+            {% if current_user.can_manage_helpdesk or (ticket.user_id == current_user.id and ticket.status not in ('resolved', 'closed')) %}
+                <a href="{{ url_for('tickets.edit', ticket_id=ticket.id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium px-3 py-2 rounded-lg inline-flex items-center gap-2">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
+        <div class="space-y-4 min-w-0">
+            <div class="bg-white rounded-xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-semibold text-gray-800 text-sm"><i class="fas fa-comments text-blue-500 mr-2"></i>Conversation</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ total_messages }} message{{ '' if total_messages == 1 else 's' }}</p>
+                    </div>
+                    {% if ticket.status != 'closed' %}
+                    <a href="#replyComposer" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-2 rounded-lg inline-flex items-center gap-2">
+                        <i class="fas fa-reply"></i> Reply
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="ticket-chat px-5 py-5 space-y-5">
+                    <article class="chat-message chat-message-requester">
+                        <div class="chat-avatar bg-blue-600">{{ ticket.creator.name[0].upper() }}</div>
+                        <div class="chat-bubble">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                <div class="min-w-0">
+                                    <span class="font-semibold text-gray-800 text-sm">{{ ticket.creator.name }}</span>
+                                    <span class="text-xs text-gray-400 ml-2">{{ ticket.created_at.strftime('%d %b %Y %H:%M') }}</span>
+                                </div>
+                                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Original request</span>
+                            </div>
+                            <div class="text-sm text-gray-700 leading-relaxed">{{ ticket.description | email_content }}</div>
+                        </div>
+                    </article>
+
+                    {% for reply in visible_replies %}
+                    <article class="chat-message {% if reply.author.can_manage_helpdesk %}chat-message-agent{% else %}chat-message-requester{% endif %} {% if reply.reply_type == 'internal' %}chat-message-internal{% endif %}">
+                        <div class="chat-avatar {% if reply.reply_type == 'internal' %}bg-amber-500{% elif reply.author.can_manage_helpdesk %}bg-emerald-600{% else %}bg-blue-500{% endif %}">{{ reply.author.name[0].upper() }}</div>
+                        <div class="chat-bubble">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                <div class="min-w-0">
+                                    <span class="font-semibold text-gray-800 text-sm">{{ reply.author.name }}</span>
+                                    <span class="text-xs text-gray-400 ml-2">{{ reply.created_at.strftime('%d %b %Y %H:%M') }}</span>
+                                </div>
+                                {% if reply.reply_type == 'internal' %}
+                                <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full"><i class="fas fa-lock mr-1"></i>Internal note</span>
+                                {% elif reply.reply_type == 'email' %}
+                                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full"><i class="fas fa-envelope mr-1"></i>Email reply</span>
+                                {% else %}
+                                <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><i class="fas fa-globe mr-1"></i>Public reply</span>
+                                {% endif %}
+                            </div>
+                            <div class="reply-content text-sm text-gray-700 leading-relaxed">{{ reply.message | email_content }}</div>
+                            {% if reply.attachments %}
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                {% for file in reply.attachments %}
+                                <a href="{{ url_for('tickets.download_attachment', attachment_id=file.id) }}" class="attachment-pill">
+                                    <i class="fas fa-paperclip"></i>
+                                    <span class="truncate max-w-[180px]">{{ file.original_filename }}</span>
+                                    <span class="text-gray-400">{{ file.size_label }}</span>
+                                </a>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if ticket.status != 'closed' %}
+            <form method="POST" action="{{ url_for('tickets.add_reply', ticket_id=ticket.id) }}" enctype="multipart/form-data" id="replyForm" class="bg-white rounded-xl shadow overflow-hidden">
+                <input type="hidden" name="return_to" value="reply">
+                <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3" id="replyComposer">
+                    <div>
+                        <h3 class="font-semibold text-gray-800 text-sm"><i class="fas fa-pen-to-square text-blue-500 mr-2"></i>Compose Reply</h3>
+                        <p class="text-xs text-gray-500 mt-0.5" id="replyModeHint">Public replies are visible to the requester.</p>
+                    </div>
+                    <div class="reply-mode-toggle" role="group" aria-label="Reply type">
+                        <label><input type="radio" name="reply_type" value="public" checked> <span><i class="fas fa-globe"></i> Public Reply</span></label>
+                        {% if current_user.can_manage_helpdesk %}
+                        <label><input type="radio" name="reply_type" value="internal"> <span><i class="fas fa-lock"></i> Internal Note</span></label>
+                        {% endif %}
+                        <label><input type="radio" name="reply_type" value="email"> <span><i class="fas fa-envelope"></i> Email</span></label>
+                    </div>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                        <div>
+                            <label class="form-label text-xs">Reply Template</label>
+                            <select id="replyTemplate" class="form-input text-sm">
+                                <option value="">Start from blank</option>
+                                {% for tpl in reply_templates %}
+                                <option value="{{ tpl.id }}" data-body="{{ tpl.body|e }}" data-internal="{{ '1' if tpl.is_internal else '0' }}">{{ tpl.category or 'General' }} - {{ tpl.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% if current_user.can_manage_helpdesk %}
+                        <div>
+                            <label class="form-label text-xs">Status</label>
+                            <select name="status" class="form-input text-sm">
+                                {% for s in ['open','in_progress','pending','resolved','closed'] %}
+                                <option value="{{ s }}" {% if ticket.status == s %}selected{% endif %}>{{ s.replace('_',' ').title() }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label text-xs">Ownership</label>
+                            <select name="assigned_to" class="form-input text-sm">
+                                <option value="">Unassigned</option>
+                                {% for user in staff_users %}
+                                <option value="{{ user.id }}" {% if ticket.assigned_to == user.id %}selected{% endif %}>{{ user.name }} - {{ user.role_label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div id="emailFields" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3 bg-purple-50 border border-purple-100 rounded-lg p-3">
+                        <div>
+                            <label class="form-label text-xs">To</label>
+                            <input type="text" class="form-input text-sm" value="{{ ticket.email_from or ticket.creator.email }}" readonly>
+                        </div>
+                        <div>
+                            <label class="form-label text-xs">Subject</label>
+                            <input type="text" name="email_subject" class="form-input text-sm" value="Re: {{ ticket.title }}">
+                        </div>
+                    </div>
+
+                    <div class="rte-wrapper" id="replyEditorWrap">
+                        <div class="rte-toolbar" aria-label="Rich text editor toolbar">
+                            <select data-command="formatBlock" title="Heading">
+                                <option value="p">Paragraph</option>
+                                <option value="h1">Heading 1</option>
+                                <option value="h2">Heading 2</option>
+                                <option value="h3">Heading 3</option>
+                            </select>
+                            <select data-command="fontSizePx" title="Font size">
+                                <option value="">Size</option>
+                                <option value="12px">Small</option>
+                                <option value="14px">Normal</option>
+                                <option value="18px">Large</option>
+                                <option value="24px">Title</option>
+                            </select>
+                            <span class="rte-divider"></span>
+                            <button type="button" data-command="undo" title="Undo"><i class="fas fa-rotate-left"></i></button>
+                            <button type="button" data-command="redo" title="Redo"><i class="fas fa-rotate-right"></i></button>
+                            <span class="rte-divider"></span>
+                            <button type="button" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+                            <button type="button" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+                            <button type="button" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+                            <button type="button" data-command="strikeThrough" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+                            <span class="rte-divider"></span>
+                            <label class="rte-color-tool" title="Text color"><i class="fas fa-palette"></i><input type="color" data-command="foreColor"></label>
+                            <label class="rte-color-tool" title="Highlight"><i class="fas fa-highlighter"></i><input type="color" value="#fff3bf" data-command="hiliteColor"></label>
+                            <span class="rte-divider"></span>
+                            <button type="button" data-command="insertUnorderedList" title="Bullet list"><i class="fas fa-list-ul"></i></button>
+                            <button type="button" data-command="insertOrderedList" title="Numbered list"><i class="fas fa-list-ol"></i></button>
+                            <button type="button" data-command="checklist" title="Checklist"><i class="fas fa-list-check"></i></button>
+                            <button type="button" data-command="indent" title="Indent"><i class="fas fa-indent"></i></button>
+                            <button type="button" data-command="outdent" title="Outdent"><i class="fas fa-outdent"></i></button>
+                            <span class="rte-divider"></span>
+                            <button type="button" data-command="formatBlock" data-value="blockquote" title="Quote"><i class="fas fa-quote-right"></i></button>
+                            <button type="button" data-command="codeBlock" title="Code block"><i class="fas fa-code"></i></button>
+                            <button type="button" data-command="table" title="Insert table"><i class="fas fa-table"></i></button>
+                            <button type="button" data-command="insertHorizontalRule" title="Divider"><i class="fas fa-minus"></i></button>
+                            <span class="rte-divider"></span>
+                            <button type="button" data-command="createLink" title="Link"><i class="fas fa-link"></i></button>
+                            <button type="button" data-command="unlink" title="Remove link"><i class="fas fa-unlink"></i></button>
+                            <button type="button" data-command="image" title="Insert image by URL"><i class="fas fa-image"></i></button>
+                            <span class="rte-divider"></span>
+                            <button type="button" data-command="justifyLeft" title="Align left"><i class="fas fa-align-left"></i></button>
+                            <button type="button" data-command="justifyCenter" title="Align center"><i class="fas fa-align-center"></i></button>
+                            <button type="button" data-command="justifyRight" title="Align right"><i class="fas fa-align-right"></i></button>
+                            <button type="button" data-command="justifyFull" title="Justify"><i class="fas fa-align-justify"></i></button>
+                            <span class="rte-divider"></span>
+                            <button type="button" data-command="plainPaste" title="Paste as plain text"><i class="fas fa-clipboard"></i></button>
+                            <button type="button" data-command="removeFormat" title="Clear formatting"><i class="fas fa-eraser"></i></button>
+                        </div>
+                        <div id="replyEditor" class="rte-body" contenteditable="true" data-placeholder="Write a clear update for the requester or add an internal note..."></div>
+                        <div class="rte-statusbar"><span id="replyWordCount">0 words</span><span>Rich text enabled</span></div>
+                    </div>
+                    <input type="hidden" name="message" id="replyMessage">
+
+                    <div class="attachment-drop" id="attachmentDrop">
+                        <input type="file" name="attachments" id="attachments" multiple class="hidden">
+                        <button type="button" id="attachmentButton" class="border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-2 rounded-lg inline-flex items-center gap-2">
+                            <i class="fas fa-paperclip"></i> Add Attachments
+                        </button>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-gray-700">Drop files here or browse</p>
+                            <p class="text-xs text-gray-500">PDF, images, Office files, CSV, ZIP, TXT and LOG up to 21 MB.</p>
+                        </div>
+                    </div>
+                    <div id="attachmentList" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <div class="px-5 py-4 border-t border-gray-100 flex flex-wrap gap-2 justify-between">
+                    <div class="flex flex-wrap gap-2">
+                        <button type="submit" name="action" value="reply" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg inline-flex items-center gap-2">
+                            <i class="fas fa-paper-plane"></i> Send Reply
+                        </button>
+                        {% if current_user.can_manage_helpdesk %}
+                            <button type="submit" name="action" value="reply" id="internalSubmit" class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium px-4 py-2 rounded-lg inline-flex items-center gap-2">
+                                <i class="fas fa-lock"></i> Add Internal Note
+                            </button>
+                        {% endif %}
+                    </div>
+                    {% if current_user.can_manage_helpdesk %}
+                    <div class="flex flex-wrap gap-2">
+                        <button type="submit" name="action" value="resolve" class="bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg inline-flex items-center gap-2">
+                            <i class="fas fa-check-circle"></i> Reply and Resolve
+                        </button>
+                        <button type="submit" name="action" value="close" class="bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium px-4 py-2 rounded-lg inline-flex items-center gap-2">
+                            <i class="fas fa-times-circle"></i> Reply and Close
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </form>
+            {% else %}
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-5 text-center text-gray-500 text-sm">
+                <i class="fas fa-lock mr-1"></i> This ticket is closed.{% if current_user.can_manage_helpdesk %} Re-open it from Edit before replying.{% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <aside class="space-y-4 2xl:sticky 2xl:top-6">
+            <div class="bg-white rounded-xl shadow p-4">
+                <h4 class="font-semibold text-gray-800 text-sm mb-3"><i class="fas fa-gauge-high text-blue-500 mr-2"></i>SLA</h4>
+                <div class="sla-card {% if ticket.is_overdue %}sla-overdue{% else %}sla-ok{% endif %}">
+                    <div>
+                        <p class="text-xs uppercase tracking-wide text-gray-500">Current state</p>
+                        <p class="text-lg font-bold {% if ticket.is_overdue %}text-red-700{% else %}text-green-700{% endif %}">
+                            {{ 'Overdue' if ticket.is_overdue else 'Within SLA' }}
+                        </p>
+                    </div>
+                    <i class="fas {% if ticket.is_overdue %}fa-triangle-exclamation text-red-500{% else %}fa-circle-check text-green-500{% endif %} text-2xl"></i>
+                </div>
+                <dl class="mt-3 space-y-2 text-xs">
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Due</dt><dd class="font-medium text-gray-700 text-right">{{ ticket.sla_due.strftime('%d %b %Y %H:%M') if ticket.sla_due else 'Not set' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Priority</dt><dd><span class="badge badge-{{ ticket.priority }}">{{ ticket.priority.title() }}</span></dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Impact</dt><dd class="font-medium text-gray-700">{{ ticket.impact.title() }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Urgency</dt><dd class="font-medium text-gray-700">{{ ticket.urgency.title() }}</dd></div>
+                </dl>
+            </div>
+
+            <div class="bg-white rounded-xl shadow p-4">
+                <h4 class="font-semibold text-gray-800 text-sm mb-3"><i class="fas fa-circle-info text-blue-500 mr-2"></i>Ticket Details</h4>
+                <dl class="space-y-2 text-xs">
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Ticket No</dt><dd class="font-mono font-bold text-gray-800">{{ ticket.ticket_number or ('#' ~ ticket.id) }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Status</dt><dd><span class="badge badge-status-{{ ticket.status }}">{{ ticket.status.replace('_',' ').title() }}</span></dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Ownership</dt><dd class="text-gray-700 text-right">{{ ticket.assignee.name if ticket.assignee else 'Unassigned' }}{% if ticket.assignee %}<span class="block text-xs text-gray-400">{{ ticket.assignee.role_label }}</span>{% endif %}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Requester</dt><dd class="text-gray-700 text-right">{{ ticket.creator.name }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Category</dt><dd class="text-gray-700 text-right">{{ ticket.category or 'None' }}</dd></div>
+                    {% if ticket.sub_category %}<div class="flex justify-between gap-3"><dt class="text-gray-500">Sub Category</dt><dd class="text-gray-700 text-right">{{ ticket.sub_category }}</dd></div>{% endif %}
+                    {% if ticket.tags %}
+                    <div>
+                        <dt class="text-gray-500 mb-1">Tags</dt>
+                        <dd class="flex flex-wrap gap-1.5">
+                            {% for item in ticket.tags.split(',') %}
+                            {% set clean_tag = item.strip() %}
+                            {% if clean_tag %}<a href="{{ url_for('tickets.list', tag=clean_tag) }}" class="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full hover:bg-indigo-100">#{{ clean_tag }}</a>{% endif %}
+                            {% endfor %}
+                        </dd>
+                    </div>
+                    {% endif %}
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Support Group</dt><dd class="text-gray-700 text-right">{{ ticket.support_group or 'None' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Created</dt><dd class="text-gray-700 text-right">{{ ticket.created_at.strftime('%d %b %Y') }}</dd></div>
+                    {% if ticket.resolved_at %}<div class="flex justify-between gap-3"><dt class="text-gray-500">Resolved</dt><dd class="text-green-700 text-right">{{ ticket.resolved_at.strftime('%d %b %Y') }}</dd></div>{% endif %}
+                </dl>
+            </div>
+
+            {% if ticket.attachments %}
+            <div class="bg-white rounded-xl shadow p-4">
+                <h4 class="font-semibold text-gray-800 text-sm mb-3"><i class="fas fa-paperclip text-gray-500 mr-2"></i>Attachments</h4>
+                <div class="space-y-2">
+                    {% for file in ticket.attachments | sort(attribute='created_at', reverse=True) %}
+                    <a href="{{ url_for('tickets.download_attachment', attachment_id=file.id) }}" class="attachment-row">
+                        <i class="fas fa-file-lines text-blue-500"></i>
+                        <span class="min-w-0 flex-1 truncate">{{ file.original_filename }}</span>
+                        <span class="text-gray-400">{{ file.size_label }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="bg-white rounded-xl shadow p-4">
+                <h4 class="font-semibold text-gray-800 text-sm mb-3"><i class="fas fa-clock-rotate-left text-gray-500 mr-2"></i>Activity Timeline</h4>
+                {% if ticket.activities %}
+                <ol class="activity-timeline">
+                    {% for act in ticket.activities | sort(attribute='created_at', reverse=True) %}
+                    <li>
+                        <span class="activity-dot"></span>
+                        <p class="text-xs font-medium text-gray-700">{{ act.description }}</p>
+                        <p class="text-[11px] text-gray-400 mt-0.5">{{ act.created_at.strftime('%d %b %Y %H:%M') }}</p>
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% else %}
+                <p class="text-xs text-gray-400">No activity yet.</p>
+                {% endif %}
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script>
+window.HELP_DESK_REQUESTER_NAME = {{ ticket.creator.name|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/ticket_reply.js') }}"></script>
+{% endblock %}

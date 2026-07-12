@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block title %}Knowledge Base - IT HelpDesk{% endblock %}
+{% block content %}
+{% set active_filters = search or category or tag or article_type or visibility or review or (status != 'published') %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">Self-Service</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">Knowledge Base</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ articles|length }} article{{ '' if articles|length == 1 else 's' }} available for this view.</p>
+        </div>
+        {% if current_user.can_manage_helpdesk %}
+        <a href="{{ url_for('knowledge.create') }}" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white">
+            <i class="fas fa-plus"></i> New Article
+        </a>
+        {% endif %}
+    </div>
+
+    {% if featured_articles and not active_filters %}
+    <div class="bg-white rounded-2xl shadow p-5">
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <h2 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-star text-amber-500"></i> Featured Articles</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {% for article in featured_articles %}
+            <a href="{{ url_for('knowledge.detail', article_id=article.id) }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-4 block">
+                <p class="font-semibold text-gray-900 line-clamp-2">{{ article.title }}</p>
+                <p class="text-xs text-gray-500 mt-2 line-clamp-2">{{ article.summary or article.content[:110] }}</p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="ticket-filter-panel">
+        <form method="GET" class="space-y-4">
+            <div class="grid grid-cols-1 xl:grid-cols-[minmax(280px,1fr)_auto] gap-3 items-end">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Search Knowledge</label>
+                    <div class="relative">
+                        <i class="fas fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                        <input type="text" name="search" value="{{ search }}" placeholder="Search title, summary, content, or tags" class="form-input pl-9">
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button type="submit" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-filter"></i> Apply</button>
+                    <a href="{{ url_for('knowledge.list') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-rotate-left"></i> Reset</a>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-6 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Type</label>
+                    <select name="type" class="filter-select w-full">
+                        <option value="">All Types</option>
+                        {% for value, label in article_types %}
+                        <option value="{{ value }}" {% if article_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Category</label>
+                    <select name="category" class="filter-select w-full">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Tag</label>
+                    <select name="tag" class="filter-select w-full">
+                        <option value="">All Tags</option>
+                        {% for item in tags %}
+                        <option value="{{ item }}" {% if tag == item %}selected{% endif %}>{{ item }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if current_user.can_manage_helpdesk %}
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Status</label>
+                    <select name="status" class="filter-select w-full">
+                        <option value="published" {% if status == 'published' %}selected{% endif %}>Published</option>
+                        <option value="draft" {% if status == 'draft' %}selected{% endif %}>Drafts</option>
+                        <option value="all" {% if status == 'all' %}selected{% endif %}>All Articles</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Visibility</label>
+                    <select name="visibility" class="filter-select w-full">
+                        <option value="">All Visibility</option>
+                        <option value="all" {% if visibility == 'all' %}selected{% endif %}>All Users</option>
+                        <option value="support" {% if visibility == 'support' %}selected{% endif %}>Support Only</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Review</label>
+                    <select name="review" class="filter-select w-full">
+                        <option value="">Any Review</option>
+                        <option value="due" {% if review == 'due' %}selected{% endif %}>Due / Overdue</option>
+                        <option value="missing" {% if review == 'missing' %}selected{% endif %}>No Review Date</option>
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {% for article in articles %}
+        <a href="{{ url_for('knowledge.detail', article_id=article.id) }}" class="bg-white rounded-2xl shadow p-5 hover:shadow-md transition-shadow block">
+            <div class="flex items-start justify-between gap-3 mb-4">
+                <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-book text-blue-500"></i>
+                </div>
+                <div class="flex flex-wrap justify-end gap-1">
+                    {% if article.is_featured %}<span class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full"><i class="fas fa-star mr-1"></i>Featured</span>{% endif %}
+                    {% if not article.is_published %}<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">Draft</span>{% endif %}
+                    {% if article.visibility == 'support' %}<span class="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-full"><i class="fas fa-lock mr-1"></i>Support</span>{% endif %}
+                    <span class="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full">{{ article_type_labels.get(article.article_type, article.article_type.replace('_',' ').title()) }}</span>
+                    {% if article.category %}<span class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">{{ article.category }}</span>{% endif %}
+                </div>
+            </div>
+            <h3 class="font-semibold text-gray-900 mb-2 line-clamp-2">{{ article.title }}</h3>
+            <p class="text-gray-500 text-sm line-clamp-3">{{ article.summary or article.content[:150] }}</p>
+            {% if article.tags %}
+            <div class="flex flex-wrap gap-1.5 mt-3">
+                {% for item in article.tags.split(',')[:4] %}
+                <span class="text-[11px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ item.strip() }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="mt-4 flex items-center justify-between text-xs text-gray-400">
+                <span>By {{ article.author.name }}</span>
+                <span><i class="fas fa-eye mr-1"></i>{{ article.view_count or 0 }}</span>
+            </div>
+        </a>
+        {% else %}
+        <div class="col-span-full text-center py-12 text-gray-400 bg-white rounded-2xl shadow">
+            <i class="fas fa-book-open text-4xl mb-3"></i>
+            <p>No articles found.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

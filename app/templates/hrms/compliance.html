@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Statutory Compliance{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div><span class="text-xs font-semibold uppercase tracking-wide text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full">Compliance</span><h1 class="text-2xl font-bold text-gray-900 mt-3">Statutory Compliance Formula Builder</h1><p class="text-sm text-gray-500 mt-1">PF, ESIC, Professional Tax, and payroll formula components.</p></div>
+    <div class="grid grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)] gap-6">
+        <form method="POST" class="bg-white rounded-2xl shadow p-5 space-y-4">
+            <h2 class="font-semibold text-gray-800">Create / Update Component</h2>
+            <div><label class="form-label">Code</label><input name="code" class="form-input" placeholder="PF_EMPLOYEE"></div>
+            <div><label class="form-label">Name</label><input name="name" class="form-input" placeholder="Employee Provident Fund"></div>
+            <div><label class="form-label">Type</label><select name="component_type" class="filter-select w-full"><option value="deduction">Deduction</option><option value="earning">Earning</option><option value="employer">Employer Contribution</option></select></div>
+            <div><label class="form-label">Formula</label><input name="formula" class="form-input" placeholder="basic * 0.12"></div>
+            <div><label class="form-label">Applies To</label><input name="applies_to" class="form-input" value="all"></div>
+            <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" name="is_active" checked> Active</label>
+            <button class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white w-full justify-center"><i class="fas fa-save"></i> Save Component</button>
+        </form>
+        <div class="bg-white rounded-2xl shadow overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-800">Components</h2></div>
+            <div class="divide-y divide-gray-100">
+                {% for item in components %}
+                <div class="p-4 flex items-center justify-between gap-3"><div><p class="font-semibold text-gray-900">{{ item.name }}</p><p class="text-xs text-gray-400">{{ item.code }} &bull; {{ item.formula }}</p></div><span class="px-2 py-1 rounded-full text-xs font-semibold {% if item.is_active %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-600{% endif %}">{{ 'Active' if item.is_active else 'Inactive' }}</span></div>
+                {% else %}<div class="p-10 text-center text-gray-400">No components yet.</div>{% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

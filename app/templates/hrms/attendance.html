@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %}Attendance{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">HRMS</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">Attendance</h1>
+            <p class="text-sm text-gray-500 mt-1">Record daily attendance, work mode, and timings. Saving the same employee/date updates the existing record.</p>
+        </div>
+        <a href="{{ url_for('hrms.holidays') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-umbrella-beach"></i> Holidays</a>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {% set cards = [
+            ('Present', summary.present, 'fa-user-check', 'emerald'),
+            ('Absent', summary.absent, 'fa-user-xmark', 'red'),
+            ('Late', summary.late, 'fa-clock', 'amber'),
+            ('Half Day', summary.half_day, 'fa-adjust', 'sky'),
+            ('On Leave', summary.on_leave, 'fa-calendar-check', 'violet'),
+        ] %}
+        {% for label, value, icon, tone in cards %}
+        <div class="ticket-stat-card ticket-stat-{{ tone }}">
+            <div><p class="text-xs text-gray-500 font-medium">{{ label }}</p><p class="text-2xl font-bold text-gray-900 mt-0.5">{{ value }}</p></div>
+            <span><i class="fas {{ icon }}"></i></span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-6">
+        <form method="POST" class="bg-white rounded-2xl shadow p-5 space-y-4">
+            <div>
+                <h2 class="font-semibold text-gray-800">Add / Update Attendance</h2>
+                <p class="text-xs text-gray-400 mt-1">One record per employee per date.</p>
+            </div>
+            {% if current_user.can_manage_hrms %}
+            <div>
+                <label class="form-label">Employee</label>
+                <select name="user_id" class="form-input" required>
+                    {% for employee in employees %}<option value="{{ employee.id }}" {% if employee.id == current_user.id %}selected{% endif %}>{{ employee.name }}</option>{% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="form-label">Date</label><input type="date" name="attendance_date" value="{{ today.isoformat() }}" class="form-input"></div>
+                <div>
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-input">
+                        {% for value in ['present','absent','half_day','late','on_leave'] %}<option value="{{ value }}">{{ value.replace('_',' ').title() }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="form-label">Check In</label><input type="time" name="check_in" class="form-input"></div>
+                <div><label class="form-label">Check Out</label><input type="time" name="check_out" class="form-input"></div>
+            </div>
+            <div>
+                <label class="form-label">Work Mode</label>
+                <select name="work_mode" class="form-input">
+                    {% for value, label in [('office','Office'),('remote','Remote'),('hybrid','Hybrid'),('client_site','Client Site')] %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div><label class="form-label">Remarks</label><input type="text" name="remarks" class="form-input" placeholder="Optional note"></div>
+            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg"><i class="fas fa-save mr-1"></i> Save Attendance</button>
+        </form>
+
+        <div class="space-y-4">
+            <div class="ticket-filter-panel">
+                <form method="GET" class="grid grid-cols-1 md:grid-cols-[150px_1fr_180px_auto] gap-3 items-end">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Month</label>
+                        <input type="month" name="month" value="{{ month }}" class="filter-select w-full">
+                    </div>
+                    {% if current_user.can_manage_hrms %}
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Employee</label>
+                        <select name="employee_id" class="filter-select w-full">
+                            <option value="">All Employees</option>
+                            {% for employee in employees %}<option value="{{ employee.id }}" {% if employee_id == employee.id %}selected{% endif %}>{{ employee.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Status</label>
+                        <select name="status" class="filter-select w-full">
+                            <option value="">All Status</option>
+                            {% for value in ['present','absent','half_day','late','on_leave'] %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value.replace('_',' ').title() }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <button class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-filter"></i> Apply</button>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100">
+                    <h2 class="font-semibold text-gray-800">Attendance Records</h2>
+                    <p class="text-xs text-gray-400 mt-1">Latest 100 matching records</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                            <tr><th class="px-4 py-3 text-left">Date</th><th class="px-4 py-3 text-left">Employee</th><th class="px-4 py-3 text-left">Status</th><th class="px-4 py-3 text-left">Time</th><th class="px-4 py-3 text-left">Mode</th><th class="px-4 py-3 text-left">Remarks</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for record in records %}
+                            <tr>
+                                <td class="px-4 py-3 text-gray-700">{{ record.attendance_date.strftime('%d %b %Y') }}</td>
+                                <td class="px-4 py-3 font-medium text-gray-900">{{ record.employee.name }}</td>
+                                <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">{{ record.status.replace('_',' ').title() }}</span></td>
+                                <td class="px-4 py-3 text-gray-600">{{ record.check_in.strftime('%H:%M') if record.check_in else '--' }} - {{ record.check_out.strftime('%H:%M') if record.check_out else '--' }}</td>
+                                <td class="px-4 py-3 text-gray-600">{{ record.work_mode.replace('_',' ').title() if record.work_mode else 'Office' }}</td>
+                                <td class="px-4 py-3 text-gray-500">{{ record.remarks or '' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="6" class="px-4 py-10 text-center text-gray-400">No attendance records.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

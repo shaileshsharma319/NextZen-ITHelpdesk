@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% block title %}{{ cfg.label }} Licenses - IT HelpDesk{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <i class="{% if cfg.fab %}fab{% else %}fas{% endif %} {{ cfg.icon }} text-blue-500"></i>
+            {{ cfg.label }} Licenses
+        </h2>
+        <p class="text-gray-500 text-sm mt-1">
+            {{ sw_count }} software title{{ 's' if sw_count != 1 }} &mdash;
+            {{ inst_count }} total installation{{ 's' if inst_count != 1 }}
+        </p>
+    </div>
+    <a href="{{ url_for('software.list') }}" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+        <i class="fas fa-arrow-left"></i> All Software
+    </a>
+</div>
+
+<!-- Quick search -->
+<div class="bg-white rounded-xl shadow p-4 mb-5">
+    <div class="relative max-w-sm">
+        <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+        <input type="text" id="lic_search" placeholder="Search software or user..."
+            class="form-input pl-9" oninput="filterLic()">
+    </div>
+</div>
+
+{% if rows %}
+
+{% for row in rows %}
+{% set sw = row.sw %}
+<div class="bg-white rounded-xl shadow mb-5 overflow-hidden lic-block"
+     data-search="{{ sw.name|lower }} {{ sw.version|lower if sw.version else '' }}">
+
+    <!-- Software header -->
+    <div class="px-5 py-3 border-b bg-gray-50 flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-compact-disc text-indigo-500 text-sm"></i>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800">{{ sw.name }}
+                    {% if sw.version and sw.version not in sw.name %}<span class="text-gray-400 font-normal text-sm ml-1">{{ sw.version }}</span>{% endif %}
+                </p>
+                <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span class="badge badge-sw-category-{{ sw.category }}">{{ sw.category.title() }}</span>
+                    <span class="badge badge-sw-license-{{ sw.license_type }}">{{ sw.license_type.replace('_',' ').title() }}</span>
+                    {% if sw.license_edition %}
+                    {% set ed_map = {'msdn':('MSDN','bg-blue-100 text-blue-700'),'oem_pro':('OEM Pro','bg-orange-100 text-orange-700'),'oem_sl':('OEM Single Lang','bg-yellow-100 text-yellow-700'),'retail':('Retail','bg-green-100 text-green-700'),'volume':('Volume','bg-purple-100 text-purple-700'),'other':('Other','bg-gray-100 text-gray-500')} %}
+                    {% set ed = ed_map.get(sw.license_edition, ('Other','bg-gray-100 text-gray-500')) %}
+                    <span class="text-xs px-2 py-0.5 rounded font-medium {{ ed[1] }}">{{ ed[0] }}</span>
+                    {% endif %}
+                    {% if sw.vendor %}<span class="text-xs text-gray-400">{{ sw.vendor }}</span>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            {% if sw.license_expiry %}
+            <span class="text-xs {% if sw.is_license_expired %}text-red-600 font-medium{% else %}text-gray-400{% endif %}">
+                <i class="fas fa-calendar-alt mr-1"></i>
+                Expiry: {{ sw.license_expiry.strftime('%d %b %Y') }}
+                {% if sw.is_license_expired %}<span class="ml-1 bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Expired</span>{% endif %}
+            </span>
+            {% endif %}
+            <span class="text-xs bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full font-medium">
+                {{ row.installs|length }} user{{ 's' if row.installs|length != 1 }}
+            </span>
+            <a href="{{ url_for('software.edit', software_id=sw.id) }}"
+                class="text-xs text-blue-500 hover:underline">
+                <i class="fas fa-edit mr-1"></i>Edit
+            </a>
+        </div>
+    </div>
+
+    {% if row.installs %}
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-400 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-2.5 text-left w-8">#</th>
+                <th class="px-4 py-2.5 text-left">User</th>
+                <th class="px-4 py-2.5 text-left">Employee ID</th>
+                <th class="px-4 py-2.5 text-left">Designation</th>
+                <th class="px-4 py-2.5 text-left">Asset / Hostname</th>
+                <th class="px-4 py-2.5 text-left">IP Address</th>
+                <th class="px-4 py-2.5 text-left">Installed On</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for inst in row.installs %}
+            {% set asset = inst.asset %}
+            {% set user = asset.assigned_user %}
+            <tr class="hover:bg-gray-50 user-row"
+                data-search="{{ user.name|lower if user else '' }} {{ user.employee_id|lower if user and user.employee_id else '' }} {{ asset.hostname|lower if asset.hostname else '' }}">
+                <td class="px-4 py-2.5 text-gray-400 text-xs">{{ loop.index }}</td>
+
+                <td class="px-4 py-2.5">
+                    {% if user %}
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                            {{ user.name[0].upper() }}
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800 text-xs">{{ user.name }}</p>
+                            <p class="text-gray-400 text-xs">{{ user.email }}</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <span class="text-gray-400 text-xs">Unassigned</span>
+                    {% endif %}
+                </td>
+
+                <td class="px-4 py-2.5 text-xs font-mono text-gray-500">
+                    {{ user.employee_id if user and user.employee_id else '—' }}
+                </td>
+
+                <td class="px-4 py-2.5 text-xs text-gray-600">
+                    {{ user.designation if user and user.designation else '—' }}
+                </td>
+
+                <td class="px-4 py-2.5 text-xs">
+                    <p class="font-medium text-gray-800">{{ asset.name }}</p>
+                    {% if asset.hostname %}
+                    <span class="font-mono bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-xs">{{ asset.hostname }}</span>
+                    {% endif %}
+                    {% if sw.license_edition in ('oem_pro', 'oem_sl') %}
+                    <span class="ml-1 bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">OEM</span>
+                    {% endif %}
+                </td>
+
+                <td class="px-4 py-2.5">
+                    {% if asset.ip_address %}
+                    <span class="font-mono text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded">{{ asset.ip_address }}</span>
+                    {% else %}
+                    <span class="text-gray-300 text-xs">—</span>
+                    {% endif %}
+                </td>
+
+                <td class="px-4 py-2.5 text-xs text-gray-400">
+                    {{ inst.installed_date.strftime('%d %b %Y') if inst.installed_date else '—' }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="px-6 py-4 text-center text-gray-400 text-sm">
+        No installations recorded for this software.
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+
+{% else %}
+<div class="bg-white rounded-xl shadow p-12 text-center text-gray-400">
+    <i class="fas {{ cfg.icon }} text-5xl text-gray-200 mb-4 block"></i>
+    <p class="text-lg font-medium text-gray-500">No {{ cfg.label }} software found.</p>
+    <a href="{{ url_for('software.create') }}" class="text-blue-500 hover:underline text-sm mt-2 inline-block">Add software →</a>
+</div>
+{% endif %}
+
+<script>
+function filterLic() {
+    const q = document.getElementById('lic_search').value.trim().toLowerCase();
+    document.querySelectorAll('.lic-block').forEach(block => {
+        if (!q) { block.style.display = ''; block.querySelectorAll('.user-row').forEach(r => r.style.display = ''); return; }
+        // check software name match
+        const swMatch = block.dataset.search.includes(q);
+        let userMatch = false;
+        block.querySelectorAll('.user-row').forEach(row => {
+            const match = swMatch || row.dataset.search.includes(q);
+            row.style.display = match ? '' : 'none';
+            if (match) userMatch = true;
+        });
+        block.style.display = (swMatch || userMatch) ? '' : 'none';
+        if (swMatch) block.querySelectorAll('.user-row').forEach(r => r.style.display = '');
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}NextZen HRMS Dashboard{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">HRMS</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">NextZen HRMS Dashboard</h1>
+            <p class="text-sm text-gray-500 mt-1">Payroll, tax, compliance, ESS, attendance, claims, and employee workflows.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ url_for('hrms.ess') }}" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-id-badge"></i> ESS</a>
+            {% if current_user.can_manage_hrms %}
+            <a href="{{ url_for('hrms.payroll') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-money-check-dollar"></i> Payroll</a>
+            {% endif %}
+            <a href="{{ url_for('hrms.attendance') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-clock"></i> Attendance</a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 xl:grid-cols-6 gap-3">
+        {% set cards = [
+            ('Employees', employees, 'fa-users', 'blue'),
+            ('Active', active, 'fa-user-check', 'emerald'),
+            ('Pending Leave', pending_leaves, 'fa-calendar-day', 'amber'),
+            ('Claims', pending_reimbursements, 'fa-receipt', 'violet'),
+            ('Investments', pending_investments, 'fa-file-invoice-dollar', 'sky'),
+            ('Loans', pending_loans, 'fa-hand-holding-dollar', 'red'),
+        ] %}
+        {% for label, value, icon, tone in cards %}
+        <div class="ticket-stat-card ticket-stat-{{ tone }}">
+            <div><p class="text-xs text-gray-500 font-medium">{{ label }}</p><p class="text-2xl font-bold text-gray-900 mt-0.5">{{ value }}</p></div>
+            <span><i class="fas {{ icon }}"></i></span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-6">
+        <div class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white rounded-2xl shadow p-5">
+                    <h2 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-money-check-dollar text-blue-600"></i> Payroll</h2>
+                    <p class="text-2xl font-bold text-gray-900 mt-3">{{ active_payroll_profiles }}</p>
+                    <p class="text-xs text-gray-400">Configured profiles</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-5">
+                    <h2 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-scale-balanced text-indigo-600"></i> Statutory</h2>
+                    <p class="text-2xl font-bold text-gray-900 mt-3">{{ active_statutory_components }}</p>
+                    <p class="text-xs text-gray-400">Active formula components</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-5">
+                    <h2 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-fingerprint text-amber-600"></i> Biometrics</h2>
+                    <p class="text-2xl font-bold text-gray-900 mt-3">{{ biometric_logs_today }}</p>
+                    <p class="text-xs text-gray-400">Logs today</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-5">
+                    <h2 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-calculator text-emerald-600"></i> My Tax</h2>
+                    <p class="text-2xl font-bold text-gray-900 mt-3">₹{{ "%.0f"|format(monthly_tax or 0) }}</p>
+                    <p class="text-xs text-gray-400">{{ financial_year }} monthly estimate</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100">
+                    <h2 class="font-semibold text-gray-800">Recent Leave Requests</h2>
+                    <p class="text-xs text-gray-400 mt-1">Latest leave activity across accessible employees.</p>
+                </div>
+                <div class="divide-y divide-gray-100">
+                    {% for leave in recent_leaves %}
+                    <div class="p-5 flex items-center justify-between gap-4">
+                        <div class="min-w-0">
+                            <p class="font-semibold text-gray-900">{{ leave.employee.name }}</p>
+                            <p class="text-xs text-gray-500">{{ leave.leave_type.replace('_',' ').title() }} &bull; {{ leave.date_range_label }} &bull; {{ leave.days }} day{{ '' if leave.days == 1 else 's' }}</p>
+                        </div>
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold {% if leave.status == 'approved' %}bg-green-100 text-green-700{% elif leave.status == 'rejected' %}bg-red-100 text-red-700{% else %}bg-amber-100 text-amber-700{% endif %}">{{ leave.status.title() }}</span>
+                    </div>
+                    {% else %}
+                    <div class="p-10 text-center text-gray-400">No leave requests yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100">
+                    <h2 class="font-semibold text-gray-800">Upcoming Holidays</h2>
+                </div>
+                <div class="divide-y divide-gray-100">
+                    {% for holiday in upcoming_holidays %}
+                    <div class="p-4 flex items-center justify-between gap-3">
+                        <div>
+                            <p class="font-medium text-gray-800">{{ holiday.name }}</p>
+                            <p class="text-xs text-gray-400">{{ holiday.holiday_type.replace('_',' ').title() }}{% if holiday.location %} &bull; {{ holiday.location }}{% endif %}</p>
+                        </div>
+                        <span class="text-sm font-semibold text-gray-700">{{ holiday.holiday_date.strftime('%d %b %Y') }}</span>
+                    </div>
+                    {% else %}
+                    <div class="p-6 text-center text-gray-400">No upcoming holidays added.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <aside class="space-y-4">
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-layer-group text-blue-500"></i> HRMS Modules</h2>
+                <div class="mt-4 grid gap-3">
+                    <a href="{{ url_for('hrms.ess') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-id-badge text-emerald-600"></i><span class="text-sm font-medium text-gray-700">Employee Self-Service</span></a>
+                    <a href="{{ url_for('hrms.employees') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-address-book text-blue-500"></i><span class="text-sm font-medium text-gray-700">Employee Directory</span></a>
+                    {% if current_user.can_manage_hrms %}
+                    <a href="{{ url_for('hrms.payroll') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-money-check-dollar text-blue-600"></i><span class="text-sm font-medium text-gray-700">Payroll & Tax Engine</span></a>
+                    <a href="{{ url_for('hrms.compliance') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-scale-balanced text-indigo-600"></i><span class="text-sm font-medium text-gray-700">Statutory Compliance</span></a>
+                    {% endif %}
+                    <a href="{{ url_for('hrms.leave') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-calendar-check text-emerald-600"></i><span class="text-sm font-medium text-gray-700">Leave Management</span></a>
+                    <a href="{{ url_for('hrms.attendance') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-clock text-amber-600"></i><span class="text-sm font-medium text-gray-700">Attendance Records</span></a>
+                    <a href="{{ url_for('hrms.reimbursements') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-receipt text-violet-600"></i><span class="text-sm font-medium text-gray-700">Reimbursements</span></a>
+                    <a href="{{ url_for('hrms.investments') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-file-invoice-dollar text-sky-600"></i><span class="text-sm font-medium text-gray-700">Investment Declarations</span></a>
+                    <a href="{{ url_for('hrms.loans') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-hand-holding-dollar text-red-600"></i><span class="text-sm font-medium text-gray-700">Loans & Advances</span></a>
+                    {% if current_user.can_manage_hrms %}
+                    <a href="{{ url_for('hrms.biometric') }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-3 flex items-center gap-3"><i class="fas fa-fingerprint text-amber-600"></i><span class="text-sm font-medium text-gray-700">Biometric Sync</span></a>
+                    {% endif %}
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

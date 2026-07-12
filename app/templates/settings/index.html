@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Basic Settings - IT HelpDesk{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <i class="fas fa-sliders text-blue-500"></i> Basic Settings
+        </h2>
+        <p class="text-gray-500 text-sm mt-1">Manage your personal helpdesk preferences.</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+    <a href="{{ url_for('settings.profile') }}" class="settings-card group">
+        <div class="settings-card-icon bg-emerald-50 text-emerald-600">
+            <i class="fas fa-user-circle"></i>
+        </div>
+        <div class="min-w-0">
+            <h3 class="font-semibold text-gray-900 group-hover:text-emerald-600">Profile</h3>
+            <p class="text-sm text-gray-500 mt-1">View your account, department, location, and access information.</p>
+        </div>
+        <i class="fas fa-arrow-right text-gray-300 group-hover:text-emerald-500 ml-auto"></i>
+    </a>
+
+    <a href="{{ url_for('settings.security') }}" class="settings-card group">
+        <div class="settings-card-icon bg-blue-50 text-blue-600">
+            <i class="fas fa-shield-halved"></i>
+        </div>
+        <div class="min-w-0">
+            <h3 class="font-semibold text-gray-900 group-hover:text-blue-600">Security</h3>
+            <p class="text-sm text-gray-500 mt-1">Enable two-factor authentication and manage backup codes.</p>
+        </div>
+        <i class="fas fa-arrow-right text-gray-300 group-hover:text-blue-500 ml-auto"></i>
+    </a>
+</div>
+
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}New Article - Knowledge Base{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">Knowledge Base</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">Create Knowledge Article</h1>
+            <p class="text-sm text-gray-500 mt-1">Publish troubleshooting steps, FAQs, and reusable support guidance.</p>
+        </div>
+        <a href="{{ url_for('knowledge.list') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-arrow-left"></i> Back</a>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
+        <div class="bg-white rounded-2xl shadow p-6 space-y-5">
+            <div>
+                <label class="form-label">Title <span class="text-red-500">*</span></label>
+                <input type="text" name="title" required class="form-input" placeholder="Example: Outlook not sending email">
+            </div>
+            <div>
+                <label class="form-label">Short Summary</label>
+                <textarea name="summary" rows="3" class="form-input" maxlength="300" placeholder="Small summary shown on cards and article header"></textarea>
+            </div>
+            <div>
+                <label class="form-label">Content <span class="text-red-500">*</span></label>
+                <textarea name="content" required rows="16" class="form-input text-sm" placeholder="Write symptoms, cause, resolution steps, escalation notes..."></textarea>
+            </div>
+        </div>
+
+        <aside class="space-y-4">
+            <div class="bg-white rounded-2xl shadow p-5 space-y-4">
+                <h2 class="font-semibold text-gray-800">Article Settings</h2>
+                <div>
+                    <label class="form-label">Article Type</label>
+                    <select name="article_type" class="form-input">
+                        {% for value, label in article_types %}
+                        <option value="{{ value }}" {% if value == 'how_to' %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Category</label>
+                    <input type="text" name="category" class="form-input" placeholder="Network, Email, Hardware">
+                </div>
+                <div>
+                    <label class="form-label">Tags</label>
+                    <input type="text" name="tags" class="form-input" placeholder="outlook, smtp, password">
+                    <p class="text-xs text-gray-400 mt-1">Comma separated tags.</p>
+                </div>
+                <div>
+                    <label class="form-label">Visibility</label>
+                    <select name="visibility" class="form-input">
+                        <option value="all">All signed-in users</option>
+                        <option value="support">Support team only</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Review Date</label>
+                    <input type="date" name="review_date" class="form-input">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">Policy Version</label>
+                        <input type="text" name="policy_version" class="form-input" placeholder="v1.0">
+                    </div>
+                    <div>
+                        <label class="form-label">Effective Date</label>
+                        <input type="date" name="effective_date" class="form-input">
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label">Attachments</label>
+                    <label class="border border-dashed border-gray-300 rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:bg-blue-50/40">
+                        <i class="fas fa-cloud-arrow-up text-blue-500 text-xl"></i>
+                        <span class="text-sm text-gray-600">Upload files</span>
+                        <input type="file" name="attachments" multiple class="hidden">
+                    </label>
+                    <p class="text-xs text-gray-400 mt-1">PDF, images, docs, sheets, slides, zip. Max 21 MB.</p>
+                </div>
+                <label class="flex items-start gap-3 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-blue-50">
+                    <input type="checkbox" name="is_published" checked class="mt-1 w-4 h-4 text-blue-600 rounded">
+                    <span><strong class="block text-sm text-gray-800">Publish immediately</strong><span class="text-xs text-gray-400">Uncheck to save as draft.</span></span>
+                </label>
+                <label class="flex items-start gap-3 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-amber-50">
+                    <input type="checkbox" name="is_featured" class="mt-1 w-4 h-4 text-amber-500 rounded">
+                    <span><strong class="block text-sm text-gray-800">Featured article</strong><span class="text-xs text-gray-400">Show near the top of Knowledge Base.</span></span>
+                </label>
+                <label class="flex items-start gap-3 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-purple-50">
+                    <input type="checkbox" name="requires_acknowledgement" class="mt-1 w-4 h-4 text-purple-600 rounded">
+                    <span><strong class="block text-sm text-gray-800">Require acknowledgement</strong><span class="text-xs text-gray-400">Users must confirm they read this policy.</span></span>
+                </label>
+            </div>
+            <div class="bg-white rounded-2xl shadow p-5">
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-lg text-sm">
+                    <i class="fas fa-paper-plane mr-1"></i> Save Article
+                </button>
+                <a href="{{ url_for('knowledge.list') }}" class="w-full mt-2 border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold px-4 py-2.5 rounded-lg text-sm inline-flex items-center justify-center">Cancel</a>
+            </div>
+        </aside>
+    </form>
+</div>
+{% endblock %}

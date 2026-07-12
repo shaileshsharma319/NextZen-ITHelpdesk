@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Edit Department - IT HelpDesk{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Edit Department</h2>
+</div>
+<div class="bg-white rounded-xl shadow p-6 max-w-lg">
+    <form method="POST" class="space-y-5">
+        <div>
+            <label class="form-label">Department Name <span class="text-red-500">*</span></label>
+            <input type="text" name="name" value="{{ dept.name }}" required class="form-input">
+        </div>
+        <div>
+            <label class="form-label">Description</label>
+            <input type="text" name="description" value="{{ dept.description or '' }}" class="form-input">
+        </div>
+        <div>
+            <label class="form-label">Location / Branch</label>
+            <input type="text" name="location" value="{{ dept.location or '' }}" class="form-input">
+        </div>
+        <div class="flex gap-3">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm">
+                Save Changes
+            </button>
+            <a href="{{ url_for('departments.list') }}" class="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg text-sm hover:bg-gray-50">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

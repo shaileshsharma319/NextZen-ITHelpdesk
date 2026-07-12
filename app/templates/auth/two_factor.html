@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Two-Factor Authentication - IT HelpDesk{% endblock %}
+{% block auth_content %}
+<div class="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-10">
+    <div class="w-full max-w-md">
+        <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-7 sm:p-8">
+            <div class="mb-7 text-center">
+                <div class="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+                    <i class="fas fa-shield-halved text-xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900 mt-4">Verification Required</h1>
+                <p class="text-sm text-gray-500 mt-1">Enter the 6-digit code from your authenticator app.</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="mb-5 space-y-2">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium">
+                    <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'danger' %}fa-times-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <form method="POST" class="space-y-5">
+                <div>
+                    <label class="form-label">Authentication Code</label>
+                    <input type="text" name="code" required autofocus inputmode="numeric" autocomplete="one-time-code"
+                        class="form-input text-center tracking-[0.35em] text-xl font-semibold py-3"
+                        maxlength="11" placeholder="000000">
+                    <p class="text-xs text-gray-400 mt-2 text-center">You can also enter one backup code.</p>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition duration-200 inline-flex items-center justify-center gap-2">
+                    <i class="fas fa-lock-open"></i> Verify & Sign In
+                </button>
+            </form>
+
+            <a href="{{ url_for('auth.login') }}" class="mt-4 inline-flex w-full items-center justify-center text-sm text-gray-500 hover:text-gray-700">
+                Back to login
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

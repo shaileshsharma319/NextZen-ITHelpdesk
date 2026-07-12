@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% block title %}Edit User - IT HelpDesk{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <i class="fas fa-user-pen text-blue-500"></i> Edit User
+        </h2>
+        <p class="text-gray-400 text-sm mt-0.5">{{ user.employee_id or 'No User Code' }} - {{ user.name }}</p>
+    </div>
+    <a href="{{ url_for('admin.users') }}" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+</div>
+
+<div class="max-w-2xl">
+<form method="POST" class="bg-white rounded-2xl shadow p-6 space-y-4">
+    <div class="border border-blue-100 bg-blue-50 rounded-2xl p-4 text-sm text-blue-700">
+        <p class="font-semibold text-blue-900"><i class="fas fa-user-lock mr-1"></i> Account administration mode</p>
+        <p class="mt-1">You can update login, department, role, company/domain, and module access.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="form-label">User Code</label>
+            <input type="text" name="employee_id" class="form-input" value="{{ user.employee_id or '' }}">
+        </div>
+        <div>
+            <label class="form-label">Full Name <span class="text-red-500">*</span></label>
+            <input type="text" name="name" required class="form-input" value="{{ user.name }}">
+        </div>
+    </div>
+
+    <div>
+        <label class="form-label">Email <span class="text-red-500">*</span>
+            <span class="text-xs text-gray-400 font-normal ml-1">- must be a real address to receive notifications</span>
+        </label>
+        <div class="relative">
+            <i class="fas fa-envelope absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+            <input type="email" name="email" required class="form-input pl-9" value="{{ user.email }}">
+        </div>
+        {% if user.email.endswith('@helpdesk.com') %}
+        <p class="text-xs text-red-500 mt-1 flex items-center gap-1">
+            <i class="fas fa-triangle-exclamation"></i> Placeholder email - update to real address for notifications to work.
+        </p>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="form-label">Phone</label>
+            <input type="text" name="phone" class="form-input" value="{{ user.phone or '' }}">
+        </div>
+        <div>
+            <label class="form-label">Job Title</label>
+            <input type="text" name="designation" class="form-input" value="{{ user.designation or '' }}">
+        </div>
+    </div>
+
+    <div>
+        <label class="form-label">Location <span class="text-red-500">*</span></label>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <select name="work_location" id="work_location" required class="form-input md:col-span-2">
+                <option value="">Select City / Branch</option>
+                {% for state_name, state_code, location_name, location_code in location_options %}
+                <option value="{{ location_name }}" data-state="{{ state_name }}" data-state-code="{{ state_code }}" data-code="{{ location_code }}" {% if user.work_location == location_name %}selected{% endif %}>{{ location_name }} - {{ state_name }}</option>
+                {% endfor %}
+            </select>
+            <input type="text" id="state_code" class="form-input bg-gray-50 font-mono uppercase" value="{{ user.state_code or '' }}" readonly placeholder="State">
+            <input type="text" id="location_code" class="form-input bg-gray-50 font-mono uppercase" value="{{ user.location_code or '' }}" readonly placeholder="Ticket">
+        </div>
+        <p class="text-xs text-gray-400 mt-1">Used for ticket number prefix and location-wise ticket view.</p>
+    </div>
+
+    <div>
+        <label class="form-label">Company / Domain <span class="text-red-500">*</span></label>
+        <select name="company_domain" required class="form-input">
+            <option value="">Select Company</option>
+            {% for domain in company_domains %}
+            <option value="{{ domain }}" {% if user.company_domain == domain %}selected{% endif %}>{{ domain }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="form-label">Role <span class="text-red-500">*</span></label>
+            <select name="role" id="role" required class="form-input" onchange="updateRoleAccess()">
+                {% for r, label in role_options %}
+                <option value="{{ r }}" {% if role_mode == r %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Department <span class="text-red-500">*</span></label>
+            <select name="department_id" id="department_id" required class="form-input">
+                <option value="">Select Department</option>
+                {% for d in departments %}
+                <option value="{{ d.id }}" {% if user.department_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div id="roleAccessBox" class="border border-blue-100 bg-blue-50 rounded-2xl p-4 text-sm">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-shield-halved text-blue-600 mt-0.5"></i>
+            <div>
+                <p class="font-semibold text-blue-900" id="roleAccessTitle">Department Basic</p>
+                <p class="text-blue-700 mt-1" id="roleAccessText">Basic helpdesk access. No admin/edit access.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="border border-gray-100 rounded-2xl p-4">
+        <div class="flex items-center justify-between gap-3 mb-3">
+            <div>
+                <h3 class="font-semibold text-gray-900">Extra Module Access</h3>
+                <p class="text-xs text-gray-400 mt-1">Use this for partial access, for example IT Basic + Licenses only.</p>
+            </div>
+            <i class="fas fa-sliders text-gray-400"></i>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <label class="border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-blue-50 has-[:checked]:border-blue-300 has-[:checked]:bg-blue-50">
+                <input type="checkbox" name="allow_helpdesk_admin" {% if user.allow_helpdesk_admin %}checked{% endif %} class="accent-blue-600 mr-2"> Helpdesk Agent
+                <span class="block text-xs text-gray-400 mt-1 ml-6">Assign/reply/manage support tickets.</span>
+            </label>
+            <label class="border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-teal-50 has-[:checked]:border-teal-300 has-[:checked]:bg-teal-50">
+                <input type="checkbox" name="allow_inventory" {% if user.allow_inventory %}checked{% endif %} class="accent-teal-600 mr-2"> Inventory
+                <span class="block text-xs text-gray-400 mt-1 ml-6">Manage assets and software inventory.</span>
+            </label>
+            <label class="border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-amber-50 has-[:checked]:border-amber-300 has-[:checked]:bg-amber-50">
+                <input type="checkbox" name="allow_licenses" {% if user.allow_licenses %}checked{% endif %} class="accent-amber-600 mr-2"> Licenses
+                <span class="block text-xs text-gray-400 mt-1 ml-6">Manage software license pages only.</span>
+            </label>
+            <label class="border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-violet-50 has-[:checked]:border-violet-300 has-[:checked]:bg-violet-50">
+                <input type="checkbox" name="allow_compliance" {% if user.allow_compliance %}checked{% endif %} class="accent-violet-600 mr-2"> Compliance
+                <span class="block text-xs text-gray-400 mt-1 ml-6">Audit, policies, and compliance records.</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="border border-blue-100 bg-blue-50 rounded-2xl p-4 space-y-3">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-shield-halved text-blue-600 mt-0.5"></i>
+            <div>
+                <p class="font-semibold text-blue-900">Multi-Factor Authentication</p>
+                <p class="text-sm text-blue-700 mt-1">
+                    Status:
+                    {% if user.two_factor_enabled %}
+                    <strong>Enabled</strong>
+                    {% elif user.two_factor_required %}
+                    <strong>Required at next login</strong>
+                    {% else %}
+                    <strong>Not required</strong>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        <label class="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" name="two_factor_required" {% if user.two_factor_required and not user.two_factor_enabled %}checked{% endif %} class="mt-1 accent-blue-600">
+            <span class="text-sm text-blue-800">Require MFA setup at next login</span>
+        </label>
+    </div>
+
+    <div>
+        <label class="form-label">New Password
+            <span class="text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
+        </label>
+        <input type="password" name="password" class="form-input" placeholder="Minimum 8 characters" minlength="8">
+    </div>
+
+    {% if user.two_factor_enabled %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <label class="border border-red-200 bg-red-50 rounded-2xl p-4 flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" name="disable_two_factor" class="mt-1 accent-red-600">
+            <span>
+                <span class="block font-semibold text-red-900">Disable MFA</span>
+                <span class="block text-sm text-red-700 mt-1">Remove MFA from this user. Password-only login will work again.</span>
+            </span>
+        </label>
+        <label class="border border-amber-200 bg-amber-50 rounded-2xl p-4 flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" name="reset_two_factor" class="mt-1 accent-amber-600">
+            <span>
+                <span class="block font-semibold text-amber-900">Reset and require setup</span>
+                <span class="block text-sm text-amber-700 mt-1">Use if the user lost their phone. Next login will force new MFA setup.</span>
+            </span>
+        </label>
+    </div>
+    {% endif %}
+
+    <div class="flex gap-2 pt-2">
+        <button type="submit"
+            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
+            <i class="fas fa-floppy-disk"></i> Save Changes
+        </button>
+        <a href="{{ url_for('admin.users') }}"
+            class="border border-gray-300 text-gray-600 px-5 py-2.5 rounded-xl text-sm hover:bg-gray-50">
+            Cancel
+        </a>
+    </div>
+</form>
+</div>
+
+<script>
+function selectedDepartmentName() {
+    const department = document.getElementById('department_id');
+    return department.options[department.selectedIndex]?.textContent.trim() || '';
+}
+
+function updateStateCode() {
+    const location = document.getElementById('work_location');
+    const stateCode = document.getElementById('state_code');
+    const locationCode = document.getElementById('location_code');
+    stateCode.value = location.selectedOptions[0]?.dataset.stateCode || '';
+    locationCode.value = location.selectedOptions[0]?.dataset.code || '';
+}
+
+function departmentKey(name) {
+    const value = name.toLowerCase();
+    if (value.includes('human') || value === 'hr' || value.includes('hr ')) return 'hr';
+    if (value.includes('it department') || value === 'it' || value.includes('information technology')) return 'it';
+    if (value.includes('it support') || value.includes('service desk')) return 'it_support';
+    if (value.includes('account')) return 'account';
+    if (value.includes('finance') || value.includes('finence')) return 'finance';
+    if (value.includes('sales')) return 'sales';
+    if (value.includes('office admin') || value.includes('administration')) return 'office_admin';
+    if (value.includes('operation')) return 'operations';
+    return 'department';
+}
+
+function updateRoleAccess() {
+    const role = document.getElementById('role').value;
+    const deptName = selectedDepartmentName();
+    const dept = departmentKey(deptName);
+    const title = document.getElementById('roleAccessTitle');
+    const text = document.getElementById('roleAccessText');
+    if (role === 'department_basic') {
+        title.textContent = 'Department Basic';
+        text.textContent = 'Basic helpdesk access. No admin/edit access.';
+        return;
+    }
+    title.textContent = `${deptName || 'Selected Department'} Admin`;
+    const accessMap = {
+        hr: 'User account management and basic helpdesk access.',
+        it: 'Full helpdesk, ticket assignment, inventory, compliance, software licenses, and assets.',
+        it_support: 'Helpdesk support group access for ticket ownership, assignment rules, and service desk work.',
+        account: 'Account department operations and basic helpdesk access.',
+        finance: 'Finance approvals, finance records, and basic helpdesk access.',
+        sales: 'Sales department operations and basic helpdesk access.',
+        office_admin: 'Office administration, facilities, vendors, and basic helpdesk access.',
+        operations: 'Operations work, logistics, coordination, and basic helpdesk access.',
+        department: 'Admin access for the selected department and basic helpdesk access.',
+    };
+    text.textContent = accessMap[dept] || accessMap.department;
+}
+
+document.getElementById('department_id').addEventListener('change', updateRoleAccess);
+document.getElementById('work_location').addEventListener('change', updateStateCode);
+updateRoleAccess();
+updateStateCode();
+</script>
+{% endblock %}

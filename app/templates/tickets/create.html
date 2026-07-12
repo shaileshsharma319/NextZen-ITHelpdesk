@@ -1,0 +1,950 @@
+{% extends 'base.html' %}
+{% block title %}Create New Ticket - IT HelpDesk{% endblock %}
+{% block content %}
+
+<form method="POST" id="ticket_form" enctype="multipart/form-data" class="create-ticket-page">
+<input type="hidden" name="source"      id="source_input"   value="{{ 'manual' if current_user.can_view_all_tickets else 'self_service' }}">
+<input type="hidden" name="description" id="desc_hidden">
+<input type="hidden" name="save_draft"  id="save_draft_input" value="0">
+
+<!-- ── Page Header ── -->
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <span class="create-hero-icon"><i class="fas fa-plus-circle"></i></span> Create New Ticket
+        </h2>
+        <p class="text-gray-500 text-sm mt-1">Capture the request, classify priority, link assets, and route work to the right support team.</p>
+    </div>
+    <a href="{{ url_for('tickets.list') }}" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+        <i class="fas fa-arrow-left"></i> Back to Tickets
+    </a>
+</div>
+
+<div class="create-ticket-grid">
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 1 — SOURCE SELECTOR
+═══════════════════════════════════════════════════ -->
+<section class="create-panel">
+    <div class="px-6 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+        <i class="fas fa-tower-broadcast text-blue-500 text-sm"></i>
+        <span class="text-sm font-semibold text-gray-700">Ticket Source</span>
+    </div>
+    <div class="p-5">
+        {% if not current_user.can_view_all_tickets %}
+        <div class="rounded-lg bg-teal-50 border border-teal-100 text-teal-700 text-sm px-3 py-3 flex items-start gap-2">
+            <i class="fas fa-user-check mt-0.5"></i>
+            <span>Your request will be created as a self-service ticket and routed to IT HelpDesk.</span>
+        </div>
+        {% else %}
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3" id="source_cards">
+            {% set sources = [
+                ('manual',       'Manual',       'fa-pen-to-square',  'border-blue-200   bg-blue-50   text-blue-700',   'bg-blue-500',   'ring-blue-400'),
+                ('email',        'Email',        'fa-envelope',       'border-amber-200  bg-amber-50  text-amber-700',  'bg-amber-500',  'ring-amber-400'),
+                ('phone',        'Phone',        'fa-phone',          'border-green-200  bg-green-50  text-green-700',  'bg-green-500',  'ring-green-400'),
+                ('walk_in',      'Walk-In',      'fa-person-walking', 'border-purple-200 bg-purple-50 text-purple-700', 'bg-purple-500', 'ring-purple-400'),
+                ('self_service', 'Self-Service', 'fa-user-check',     'border-teal-200   bg-teal-50   text-teal-700',   'bg-teal-500',   'ring-teal-400'),
+            ] %}
+            {% for val, lbl, icon, cls, dot, ring in sources %}
+            <button type="button" id="scard_{{ val }}" onclick="selectSource('{{ val }}','{{ ring }}')"
+                class="source-card source-card-modern {{ cls }} {% if val == 'manual' %}ring-2 ring-offset-1 ring-blue-400{% endif %}">
+                <div class="w-9 h-9 {{ dot }} rounded-xl flex items-center justify-center">
+                    <i class="fas {{ icon }} text-white"></i>
+                </div>
+                <span class="font-semibold text-xs">{{ lbl }}</span>
+            </button>
+            {% endfor %}
+        </div>
+        <div id="source_hint" class="mt-3 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 text-xs px-3 py-2">
+            Manual, Phone, Walk-In, and Self-Service use the same ticket fields. Only the source is different for reporting and routing.
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 2 — REQUESTER INFORMATION
+═══════════════════════════════════════════════════ -->
+<section class="create-panel">
+    <div class="px-6 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+        <i class="fas fa-user text-blue-500 text-sm"></i>
+        <span class="text-sm font-semibold text-gray-700">Requester Information</span>
+    </div>
+    <div class="p-5">
+
+        <!-- Logged-in user auto-fill (manual / self-service) -->
+        <div id="req_self_panel">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="form-label">Requester Name <span class="text-red-500">*</span></label>
+                    <input type="text" name="req_name" id="req_name" class="form-input"
+                        value="{{ current_user.name }}" required placeholder="Full name">
+                </div>
+                <div>
+                    <label class="form-label">Department</label>
+                    <input type="text" name="req_department" id="req_department" class="form-input"
+                        value="{{ current_user.department.name if current_user.department else '' }}"
+                        placeholder="Department">
+                </div>
+                <div>
+                    <label class="form-label">Email</label>
+                    <input type="email" name="req_email" id="req_email" class="form-input"
+                        value="{{ current_user.email }}" placeholder="email@company.com">
+                </div>
+                <div>
+                    <label class="form-label">Employee ID</label>
+                    <input type="text" name="req_employee_id" id="req_employee_id" class="form-input"
+                        value="{{ current_user.employee_id or '' }}" placeholder="EMP001">
+                </div>
+                <div>
+                    <label class="form-label">Contact No</label>
+                    <input type="text" name="req_phone" id="req_phone" class="form-input"
+                        value="{{ current_user.phone or '' }}" placeholder="+60 12-345 6789">
+                </div>
+                <div>
+                    <label class="form-label">Location</label>
+                    <input type="text" name="req_location" id="req_location" class="form-input"
+                        placeholder="Floor / Room / Site">
+                </div>
+            </div>
+        </div>
+
+        <!-- Email-specific requester fields -->
+        <div id="req_email_panel" class="hidden space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="form-label">From (Sender)</label>
+                    <div class="relative">
+                        <input type="text" name="email_from" class="form-input bg-gray-50 pr-9"
+                            value="{{ email_cfg.mail_from if email_cfg else '' }}"
+                            readonly placeholder="No email config set">
+                        <span class="absolute right-3 top-2.5 text-gray-400" title="Auto-filled from server email config">
+                            <i class="fas fa-lock text-xs"></i>
+                        </span>
+                    </div>
+                    {% if email_cfg %}
+                    <p class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                        <i class="fas fa-circle-info"></i>
+                        {{ email_cfg.mail_from_name }} &mdash; {{ email_cfg.mail_server }}
+                    </p>
+                    {% else %}
+                    <p class="text-xs text-red-400 mt-1 flex items-center gap-1">
+                        <i class="fas fa-triangle-exclamation"></i>
+                        No email server configured.
+                        {% if current_user.can_manage_system %}<a href="{{ url_for('admin.email_config') }}" class="underline">Configure now</a>{% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="form-label">To (Customer Email) <span class="text-red-500">*</span></label>
+                    <input type="text" name="email_to" class="form-input"
+                        placeholder="customer@company.com" autocomplete="off">
+                    <p class="text-xs text-gray-400 mt-1">Requester / customer email address</p>
+                </div>
+                <div>
+                    <label class="form-label">CC</label>
+                    <input type="text" name="email_cc" class="form-input"
+                        placeholder="manager@company.com, team@company.com">
+                    <p class="text-xs text-gray-400 mt-1">Separate multiple with commas</p>
+                </div>
+                <div>
+                    <label class="form-label">Received Date</label>
+                    <input type="datetime-local" name="email_received" class="form-input">
+                </div>
+                <div>
+                    <label class="form-label">Mail Client</label>
+                    <select name="email_source_client" class="form-input">
+                        <option value="">— Select —</option>
+                        <option value="outlook">Outlook</option>
+                        <option value="gmail">Gmail</option>
+                        <option value="thunderbird">Thunderbird</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Message ID</label>
+                    <input type="text" name="email_message_id" class="form-input font-mono text-xs"
+                        placeholder="<unique-id@mail.server>">
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 3 — TICKET INFORMATION
+═══════════════════════════════════════════════════ -->
+<section class="create-panel">
+    <div class="px-6 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+        <i class="fas fa-ticket-alt text-blue-500 text-sm"></i>
+        <span class="text-sm font-semibold text-gray-700">Ticket Information</span>
+    </div>
+    <div class="p-5 space-y-4">
+
+        <!-- Subject -->
+        <div>
+            <label class="form-label">Subject <span class="text-red-500">*</span></label>
+            <input type="text" name="title" id="title_input" required maxlength="200"
+                class="form-input text-base"
+                placeholder="Brief, clear description of the issue...">
+        </div>
+
+        <!-- Row: Category / Sub Category / Priority -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+                <label class="form-label">Category</label>
+                <select name="category" id="category_select" class="form-input" onchange="updateSubcategory()">
+                    <option value="">— Select —</option>
+                    {% for cat in category_map.keys() %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Sub Category</label>
+                <select name="sub_category" id="sub_category_select" class="form-input">
+                    <option value="">— Select category first —</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Priority <span class="text-red-500">*</span></label>
+                <select name="priority" id="priority_select" class="form-input" onchange="onPriorityChange(this.value)">
+                    <option value="low">🟢 Low — 72 hrs</option>
+                    <option value="medium" selected>🟡 Medium — 24 hrs</option>
+                    <option value="high">🟠 High — 8 hrs</option>
+                    <option value="critical">🔴 Critical — 4 hrs</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <label class="form-label">Tags</label>
+            <input type="text" name="tags" class="form-input" placeholder="vpn, printer, password reset">
+            <p class="text-xs text-gray-400 mt-1">Comma separated labels for filtering and quick classification.</p>
+        </div>
+
+        <!-- Row: Source / Impact / Urgency -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+                <label class="form-label">Ticket Type <span class="text-red-500">*</span></label>
+                <select name="ticket_type" required class="form-input">
+                    <option value="incident">🔴 Incident</option>
+                    <option value="request">🔵 Request</option>
+                    <option value="problem">🟠 Problem</option>
+                    <option value="change">🟢 Change</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Impact</label>
+                <select name="impact" class="form-input">
+                    <option value="low">Low — Single user</option>
+                    <option value="medium" selected>Medium — Team / Dept</option>
+                    <option value="high">High — Org-wide</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Urgency</label>
+                <select name="urgency" class="form-input">
+                    <option value="low">Low — Can wait</option>
+                    <option value="medium" selected>Medium — Soon</option>
+                    <option value="high">High — Immediate</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- SLA preview strip -->
+        <div id="sla_strip" class="rounded-xl px-4 py-2.5 text-sm font-semibold flex items-center gap-2
+             bg-yellow-50 text-yellow-700 border border-yellow-200">
+            <i class="fas fa-hourglass-half"></i>
+            <span id="sla_text">SLA Due: calculating...</span>
+        </div>
+
+        <!-- Description — Custom RTE -->
+        <div>
+            <div class="flex items-center justify-between mb-1">
+                <label class="form-label m-0">Description <span class="text-red-500">*</span></label>
+                <div class="flex gap-2">
+                    {% set templates = [
+                        ('Cannot login',   'User cannot login to system.\nError message: \nAffected user: \nLast working: '),
+                        ('Slow PC',        'PC running very slow.\nOS: \nRAM: \nLast restart: \nApps affected: '),
+                        ('No Internet',    'No internet connectivity.\nLocation: \nIP: \nRouter reachable: \nOther users affected: '),
+                        ('Printer issue',  'Printer not working.\nPrinter name: \nError shown: \nLast working: '),
+                        ('Keyboard issue', 'Keyboard not working.\nIssue type: \nConnection (USB/BT/PS2): \nLast working: '),
+                    ] %}
+                    {% for label, tmpl in templates %}
+                    <button type="button" onclick="rteSetTemplate({{ tmpl|tojson }})"
+                        class="text-xs bg-gray-100 hover:bg-blue-50 hover:text-blue-600 text-gray-500 px-2.5 py-1 rounded-lg border border-gray-200 transition-colors hidden sm:block">
+                        {{ label }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- RTE Wrapper -->
+            <div class="rte-wrapper">
+
+                <!-- Toolbar -->
+                <div class="rte-toolbar" id="rte_toolbar">
+                    <!-- Format -->
+                    <select id="rte_heading" onchange="rteBlock(this.value); this.blur()" title="Heading">
+                        <option value="p">Paragraph</option>
+                        <option value="h1">Heading 1</option>
+                        <option value="h2">Heading 2</option>
+                        <option value="h3">Heading 3</option>
+                    </select>
+                    <select id="rte_size" onchange="rteFontSize(this.value); this.value=''; this.blur()" title="Font size">
+                        <option value="">Size</option>
+                        <option value="12px">Small</option>
+                        <option value="14px">Normal</option>
+                        <option value="18px">Large</option>
+                        <option value="24px">Title</option>
+                    </select>
+                    <div class="rte-divider"></div>
+                    <!-- History -->
+                    <button type="button" onclick="rteCmd('undo')" title="Undo"><i class="fas fa-rotate-left"></i></button>
+                    <button type="button" onclick="rteCmd('redo')" title="Redo"><i class="fas fa-rotate-right"></i></button>
+                    <div class="rte-divider"></div>
+                    <!-- Inline -->
+                    <button type="button" onclick="rteCmd('bold')"            title="Bold"          id="btn_bold"><i class="fas fa-bold"></i></button>
+                    <button type="button" onclick="rteCmd('italic')"          title="Italic"        id="btn_italic"><i class="fas fa-italic"></i></button>
+                    <button type="button" onclick="rteCmd('underline')"       title="Underline"     id="btn_underline"><i class="fas fa-underline"></i></button>
+                    <button type="button" onclick="rteCmd('strikeThrough')"   title="Strikethrough" id="btn_strikeThrough"><i class="fas fa-strikethrough"></i></button>
+                    <div class="rte-divider"></div>
+                    <!-- Color -->
+                    <label class="rte-color-tool" title="Text color"><i class="fas fa-palette"></i><input type="color" onchange="rteCmd('foreColor', this.value)"></label>
+                    <label class="rte-color-tool" title="Highlight"><i class="fas fa-highlighter"></i><input type="color" value="#fff3bf" onchange="rteHighlight(this.value)"></label>
+                    <div class="rte-divider"></div>
+                    <!-- Lists -->
+                    <button type="button" onclick="rteCmd('insertUnorderedList')" title="Bullet list"   id="btn_insertUnorderedList"><i class="fas fa-list-ul"></i></button>
+                    <button type="button" onclick="rteCmd('insertOrderedList')"   title="Numbered list" id="btn_insertOrderedList"><i class="fas fa-list-ol"></i></button>
+                    <button type="button" onclick="rteChecklist()" title="Checklist"><i class="fas fa-list-check"></i></button>
+                    <div class="rte-divider"></div>
+                    <!-- Indent -->
+                    <button type="button" onclick="rteCmd('indent')"   title="Indent"><i class="fas fa-indent"></i></button>
+                    <button type="button" onclick="rteCmd('outdent')"  title="Outdent"><i class="fas fa-outdent"></i></button>
+                    <div class="rte-divider"></div>
+                    <!-- Block -->
+                    <button type="button" onclick="rteBlockquote()"   title="Blockquote"><i class="fas fa-quote-left"></i></button>
+                    <button type="button" onclick="rteCodeBlock()"    title="Code block"><i class="fas fa-code"></i></button>
+                    <button type="button" onclick="rteInsertTable()"   title="Insert table"><i class="fas fa-table"></i></button>
+                    <button type="button" onclick="rteCmd('insertHorizontalRule')" title="Divider"><i class="fas fa-minus"></i></button>
+                    <div class="rte-divider"></div>
+                    <!-- Link -->
+                    <button type="button" onclick="rteLink()"         title="Insert link"><i class="fas fa-link"></i></button>
+                    <button type="button" onclick="rteCmd('unlink')"  title="Remove link"><i class="fas fa-unlink"></i></button>
+                    <button type="button" onclick="rteImage()"        title="Insert image by URL"><i class="fas fa-image"></i></button>
+                    <div class="rte-divider"></div>
+                    <!-- Align -->
+                    <button type="button" onclick="rteCmd('justifyLeft')"   title="Align left"><i class="fas fa-align-left"></i></button>
+                    <button type="button" onclick="rteCmd('justifyCenter')" title="Align center"><i class="fas fa-align-center"></i></button>
+                    <button type="button" onclick="rteCmd('justifyRight')"  title="Align right"><i class="fas fa-align-right"></i></button>
+                    <button type="button" onclick="rteCmd('justifyFull')"   title="Justify"><i class="fas fa-align-justify"></i></button>
+                    <div class="rte-divider"></div>
+                    <!-- Clear -->
+                    <button type="button" onclick="rtePlainPasteMode()" title="Paste as plain text"><i class="fas fa-clipboard"></i></button>
+                    <button type="button" onclick="rteCmd('removeFormat')"  title="Clear formatting"><i class="fas fa-eraser"></i></button>
+                </div>
+
+                <!-- Editable body -->
+                <div id="rte_body" class="rte-body"
+                     contenteditable="true"
+                     data-placeholder="Describe the issue in detail — what happened, steps to reproduce, error messages, affected users…"
+                     spellcheck="true"
+                     onkeyup="rteUpdate()" onmouseup="rteUpdate()"></div>
+
+                <!-- Status bar -->
+                <div class="rte-statusbar">
+                    <span id="rte_mode">Rich Text</span>
+                    <span id="rte_chars">0 words, 0 chars</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 4 — ASSIGNMENT INFORMATION
+═══════════════════════════════════════════════════ -->
+{% if current_user.can_view_all_tickets %}
+<section class="create-panel">
+    <div class="px-6 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+        <i class="fas fa-user-gear text-blue-500 text-sm"></i>
+        <span class="text-sm font-semibold text-gray-700">Assignment Information</span>
+    </div>
+    <div class="p-5">
+        <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 mb-4 text-sm text-blue-700 flex items-start gap-2">
+            <i class="fas fa-route mt-0.5"></i>
+            <span>Select Support Group and Ownership for manual routing. Leave Ownership blank to let assignment rules route the ticket automatically.</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div>
+                <label class="form-label">Support Group</label>
+                <select name="support_group" id="support_group_select" class="form-input" onchange="filterOwnersByGroup()">
+                    <option value="">— None —</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.name }}">{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Ownership</label>
+                <select name="assigned_to" id="owner_select" class="form-input">
+                    <option value="">— Unassigned —</option>
+                    {% for u in staff_users %}
+                    <option value="{{ u.id }}" data-department="{{ u.department.name if u.department else '' }}">{{ u.name }} - {{ u.role_label }}{% if u.department %} - {{ u.department.name }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Status</label>
+                <select name="status" class="form-input">
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="pending">Pending</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Due Date</label>
+                <input type="datetime-local" name="due_date" class="form-input">
+            </div>
+        </div>
+        <p id="assignment_hint" class="text-xs text-gray-400 mt-3"></p>
+    </div>
+</section>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 5 — ASSET INFORMATION
+═══════════════════════════════════════════════════ -->
+<section class="create-panel">
+    <div class="px-6 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+        <i class="fas fa-laptop text-blue-500 text-sm"></i>
+        <span class="text-sm font-semibold text-gray-700">Asset Information</span>
+    </div>
+    <div class="p-5">
+        {% if not current_user.can_view_all_tickets %}
+        {% if all_assets %}
+        <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 mb-4 text-sm text-blue-700 flex items-start gap-2">
+            <i class="fas fa-circle-info mt-0.5"></i>
+            <span>Your assigned asset is auto-filled for this ticket. If you have multiple assigned assets, choose the affected one.</span>
+        </div>
+        {% else %}
+        <div class="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 mb-4 text-sm text-amber-700 flex items-start gap-2">
+            <i class="fas fa-triangle-exclamation mt-0.5"></i>
+            <span>No asset is assigned to your profile yet. The ticket can still be submitted without asset information.</span>
+        </div>
+        {% endif %}
+        {% endif %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {% if current_user.can_view_all_tickets %}
+            <div>
+                <label class="form-label">Asset Type</label>
+                <select name="asset_type_filter" id="asset_type_filter" class="form-input" onchange="filterAssets()">
+                    <option value="">— All Types —</option>
+                    <option value="computer">Computer</option>
+                    <option value="monitor">Monitor</option>
+                    <option value="printer">Printer</option>
+                    <option value="phone">Phone</option>
+                    <option value="server">Server</option>
+                    <option value="network">Network</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            {% endif %}
+            <div>
+                <label class="form-label">Asset Name</label>
+                <select name="asset_id" id="asset_select" class="form-input">
+                    <option value="">— None —</option>
+                    {% for asset in all_assets %}
+                    <option value="{{ asset.id }}" data-type="{{ asset.asset_type }}" {% if default_asset and default_asset.id == asset.id %}selected{% endif %}>
+                        {{ asset.name }} — {{ asset.asset_tag }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Asset ID / Tag</label>
+                <input type="text" id="asset_tag_display" class="form-input bg-gray-50"
+                    placeholder="Auto-filled on selection" readonly>
+            </div>
+            {% if not current_user.can_view_all_tickets %}
+            <div>
+                <label class="form-label">Asset Type</label>
+                <input type="text" id="asset_type_display" class="form-input bg-gray-50 capitalize"
+                    placeholder="Auto-filled on selection" readonly>
+            </div>
+            {% endif %}
+            <div class="hidden">
+                <label class="form-label">Application</label>
+                <select name="software_id" id="software_select" class="form-input">
+                    <option value="">— None —</option>
+                    {% for sw in all_software %}
+                    <option value="{{ sw.id }}" data-category="{{ sw.category }}" data-software-label="{{ (sw.name ~ (' ' ~ sw.version if sw.version else ''))|trim }}">
+                        {{ sw.name }}{% if sw.version %} {{ sw.version }}{% endif %}
+                        {% if sw.vendor %} — {{ sw.vendor }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if not all_software %}
+                <p class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                    <i class="fas fa-circle-info"></i> No applications found in inventory.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 6 — ATTACHMENTS
+═══════════════════════════════════════════════════ -->
+<section class="create-panel">
+    <div class="px-6 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+        <i class="fas fa-paperclip text-blue-500 text-sm"></i>
+        <span class="text-sm font-semibold text-gray-700">Attachments</span>
+    </div>
+    <div class="p-5">
+        <label id="drop_zone"
+            class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300
+                   rounded-xl cursor-pointer bg-gray-50 hover:bg-blue-50 hover:border-blue-400 transition-colors">
+            <i class="fas fa-cloud-arrow-up text-2xl text-gray-400 mb-2"></i>
+            <p class="text-sm text-gray-500">Drag &amp; drop files here, or <span class="text-blue-600 font-medium">browse</span></p>
+            <p class="text-xs text-gray-400 mt-1">PNG, JPG, PDF, DOCX, XLSX — max 10 MB each</p>
+            <input type="file" name="attachments" id="file_input" multiple class="hidden"
+                accept=".png,.jpg,.jpeg,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+                onchange="showFileList(this)">
+        </label>
+        <div id="file_list" class="mt-3 space-y-1.5"></div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     FOOTER — ACTION BUTTONS
+═══════════════════════════════════════════════════ -->
+<div class="create-actions">
+    <a href="{{ url_for('tickets.list') }}"
+        class="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200
+               hover:bg-gray-50 px-5 py-2.5 rounded-xl transition-all font-medium">
+        <i class="fas fa-xmark"></i> Cancel
+    </a>
+    <div class="flex items-center gap-3">
+        <button type="button" onclick="submitDraft()"
+            class="flex items-center gap-2 text-sm text-gray-600 border border-gray-300 hover:bg-gray-50
+                   px-5 py-2.5 rounded-xl transition-all font-medium">
+            <i class="fas fa-floppy-disk"></i> Save Draft
+        </button>
+        <button type="submit" id="submit_btn"
+            class="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 active:scale-95
+                   text-white font-semibold px-6 py-2.5 rounded-xl shadow transition-all">
+            <i class="fas fa-paper-plane"></i> Submit Ticket
+        </button>
+    </div>
+</div>
+
+</div><!-- end create-ticket-grid -->
+</form>
+
+<script>
+// ════════════════════════════════════════════
+//  CUSTOM RICH TEXT EDITOR
+// ════════════════════════════════════════════
+const rteBody = document.getElementById('rte_body');
+let rteForcePlainPaste = false;
+let rteSelectedImage = null;
+const rteImagePopover = document.createElement('div');
+rteImagePopover.className = 'rte-image-resize-popover hidden';
+rteImagePopover.innerHTML = `
+    <button type="button" data-width="25%">Small</button>
+    <button type="button" data-width="50%">Medium</button>
+    <button type="button" data-width="75%">Large</button>
+    <button type="button" data-width="100%">Full</button>
+    <button type="button" data-width="custom">Custom</button>
+    <button type="button" data-width="">Original</button>
+`;
+document.body.appendChild(rteImagePopover);
+
+function rteNormalizeImages() {
+    rteBody.querySelectorAll('img').forEach(img => {
+        img.loading = 'lazy';
+        img.draggable = false;
+        img.title = 'Click to resize image';
+        if (!img.style.maxWidth) img.style.maxWidth = '100%';
+        if (!img.style.height) img.style.height = 'auto';
+    });
+}
+
+function rteHideImagePopover() {
+    if (rteSelectedImage) rteSelectedImage.classList.remove('rte-image-selected');
+    rteSelectedImage = null;
+    rteImagePopover.classList.add('hidden');
+}
+
+function rtePositionImagePopover(img) {
+    const rect = img.getBoundingClientRect();
+    rteImagePopover.classList.remove('hidden');
+    const top = Math.max(8, rect.top - rteImagePopover.offsetHeight - 10);
+    const left = Math.min(window.innerWidth - rteImagePopover.offsetWidth - 8, Math.max(8, rect.left));
+    rteImagePopover.style.top = `${top}px`;
+    rteImagePopover.style.left = `${left}px`;
+}
+
+function rteSelectImage(img) {
+    rteHideImagePopover();
+    rteSelectedImage = img;
+    img.classList.add('rte-image-selected');
+    rtePositionImagePopover(img);
+}
+
+rteImagePopover.addEventListener('click', function(event) {
+    const button = event.target.closest('button[data-width]');
+    if (!button || !rteSelectedImage) return;
+    let width = button.dataset.width;
+    if (width === 'custom') {
+        const input = prompt('Image width (% or px):', parseInt(rteSelectedImage.style.width, 10) || 50);
+        if (!input) return;
+        width = /^\d+$/.test(input.trim()) ? `${input.trim()}%` : input.trim();
+    }
+    if (!width) {
+        rteSelectedImage.style.width = '';
+        rteSelectedImage.style.maxWidth = '100%';
+    } else {
+        rteSelectedImage.style.width = width;
+        rteSelectedImage.style.maxWidth = '100%';
+    }
+    rteSelectedImage.style.height = 'auto';
+    rteUpdate();
+    syncRTE();
+    rtePositionImagePopover(rteSelectedImage);
+});
+
+function rteCmd(cmd, val) {
+    rteBody.focus();
+    document.execCommand(cmd, false, val || null);
+    rteUpdate();
+}
+
+function rteBlock(tag) {
+    rteBody.focus();
+    document.execCommand('formatBlock', false, tag);
+    rteUpdate();
+}
+
+function rteFontSize(size) {
+    if (!size) return;
+    document.execCommand('fontSize', false, '7');
+    rteBody.querySelectorAll('font[size="7"]').forEach(node => {
+        const span = document.createElement('span');
+        span.style.fontSize = size;
+        span.innerHTML = node.innerHTML;
+        node.replaceWith(span);
+    });
+    rteUpdate();
+}
+
+function rteHighlight(color) {
+    rteCmd('hiliteColor', color);
+}
+
+function rteBlockquote() {
+    rteBody.focus();
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const bq = document.createElement('blockquote');
+    bq.appendChild(range.extractContents());
+    range.insertNode(bq);
+    sel.collapse(bq, bq.childNodes.length);
+    rteUpdate();
+}
+
+function rteCodeBlock() {
+    rteBody.focus();
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const pre = document.createElement('pre');
+    pre.appendChild(range.extractContents());
+    range.insertNode(pre);
+    sel.collapse(pre, pre.childNodes.length);
+    rteUpdate();
+}
+
+function rteChecklist() {
+    const html = '<ul class="rte-checklist"><li><input type="checkbox"> Action item</li><li><input type="checkbox"> Follow up</li></ul>';
+    rteCmd('insertHTML', html);
+}
+
+function rteInsertTable() {
+    const rows = Math.max(1, Math.min(8, parseInt(prompt('Rows:', '3') || '3', 10)));
+    const cols = Math.max(1, Math.min(6, parseInt(prompt('Columns:', '3') || '3', 10)));
+    let html = '<table class="rte-table"><tbody>';
+    for (let r = 0; r < rows; r++) {
+        html += '<tr>';
+        for (let c = 0; c < cols; c++) html += '<td><br></td>';
+        html += '</tr>';
+    }
+    html += '</tbody></table><p><br></p>';
+    rteCmd('insertHTML', html);
+}
+
+function rteLink() {
+    const url = prompt('Enter URL:', 'https://');
+    if (url) rteCmd('createLink', url);
+}
+
+function rteImage() {
+    const url = prompt('Image URL:', 'https://');
+    if (!url || !/^https?:\/\//i.test(url)) return;
+    const alt = prompt('Alt text:', '') || '';
+    rteCmd('insertHTML', `<img src="${url.replace(/"/g, '&quot;')}" alt="${alt.replace(/"/g, '&quot;')}" style="max-width:100%;height:auto;">`);
+    rteNormalizeImages();
+}
+
+function rtePlainPasteMode() {
+    rteForcePlainPaste = !rteForcePlainPaste;
+    document.getElementById('rte_mode').textContent = rteForcePlainPaste ? 'Plain Paste' : 'Rich Text';
+}
+
+function rtePlaceCaretAtEnd(node) {
+    const range = document.createRange();
+    const selection = window.getSelection();
+    range.selectNodeContents(node);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    rteBody.focus();
+}
+
+function rteUpdate() {
+    rteNormalizeImages();
+    const text = rteBody.innerText || '';
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    document.getElementById('rte_chars').textContent = `${words} words, ${text.length} chars`;
+    ['bold','italic','underline','strikeThrough','insertUnorderedList','insertOrderedList'].forEach(cmd => {
+        const btn = document.getElementById('btn_' + cmd);
+        if (btn) btn.classList.toggle('rte-active', document.queryCommandState(cmd));
+    });
+    const block = document.queryCommandValue('formatBlock').toLowerCase();
+    const hSel  = document.getElementById('rte_heading');
+    hSel.value  = ['h1','h2','h3'].includes(block) ? block : 'p';
+}
+
+function rteSetTemplate(text) {
+    rteBody.focus();
+    rteBody.innerHTML = text.replace(/\n/g, '<br>');
+    rteUpdate();
+}
+
+function syncRTE() {
+    document.getElementById('desc_hidden').value = rteBody.innerHTML;
+}
+
+rteBody.addEventListener('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'b') { e.preventDefault(); rteCmd('bold'); }
+        if (e.key === 'i') { e.preventDefault(); rteCmd('italic'); }
+        if (e.key === 'u') { e.preventDefault(); rteCmd('underline'); }
+        if (e.key === 'z') { e.preventDefault(); rteCmd('undo'); }
+        if (e.key === 'y') { e.preventDefault(); rteCmd('redo'); }
+    }
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        rteCmd(e.shiftKey ? 'outdent' : 'indent');
+    }
+});
+
+rteBody.addEventListener('paste', function(e) {
+    if (!rteForcePlainPaste) {
+        setTimeout(rteUpdate, 0);
+        return;
+    }
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, text);
+    rteUpdate();
+});
+rteBody.addEventListener('click', function(event) {
+    const image = event.target.closest('img');
+    if (image && rteBody.contains(image)) {
+        event.preventDefault();
+        rteSelectImage(image);
+        return;
+    }
+    if (!event.target.closest('.rte-image-resize-popover')) rteHideImagePopover();
+});
+document.addEventListener('click', function(event) {
+    if (!rteBody.contains(event.target) && !rteImagePopover.contains(event.target)) {
+        rteHideImagePopover();
+    }
+});
+window.addEventListener('scroll', function() {
+    if (rteSelectedImage) rtePositionImagePopover(rteSelectedImage);
+}, true);
+window.addEventListener('resize', function() {
+    if (rteSelectedImage) rtePositionImagePopover(rteSelectedImage);
+});
+rteBody.addEventListener('input', function() {
+    rteUpdate();
+});
+
+// ════════════════════════════════════════════
+//  SLA
+// ════════════════════════════════════════════
+const SLA_HOURS = { low:72, medium:24, high:8, critical:4 };
+const SLA_STRIP_CLS = {
+    low:      'bg-green-50  text-green-700  border-green-200',
+    medium:   'bg-yellow-50 text-yellow-700 border-yellow-200',
+    high:     'bg-orange-50 text-orange-700 border-orange-200',
+    critical: 'bg-red-50    text-red-700    border-red-200',
+};
+function onPriorityChange(val) {
+    const due = new Date(Date.now() + SLA_HOURS[val] * 3600000);
+    const fmt = due.toLocaleDateString('en-GB', { weekday:'short', day:'2-digit', month:'short', year:'numeric' })
+              + ' at ' + due.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+    const strip = document.getElementById('sla_strip');
+    strip.className = `rounded-xl px-4 py-2.5 text-sm font-semibold flex items-center gap-2 border ${SLA_STRIP_CLS[val]}`;
+    document.getElementById('sla_text').textContent = `SLA Due: ${fmt}`;
+}
+onPriorityChange('medium');
+
+// ════════════════════════════════════════════
+//  SOURCE SELECTOR
+// ════════════════════════════════════════════
+function selectSource(val, ring) {
+    document.getElementById('source_input').value = val;
+    document.querySelectorAll('.source-card').forEach(c =>
+        c.classList.remove('ring-2','ring-offset-1','ring-blue-400','ring-amber-400',
+                           'ring-green-400','ring-purple-400','ring-teal-400')
+    );
+    document.getElementById('scard_' + val).classList.add('ring-2','ring-offset-1', ring);
+    document.getElementById('req_email_panel').classList.toggle('hidden', val !== 'email');
+    document.getElementById('req_self_panel').classList.toggle('hidden',  val === 'email');
+    const sourceHint = document.getElementById('source_hint');
+    if (sourceHint) {
+        const hints = {
+            manual: 'Manual, Phone, Walk-In, and Self-Service use the same ticket fields. Only the source is different for reporting and routing.',
+            phone: 'Phone uses the normal ticket fields. Select this when support creates the ticket after a phone call.',
+            walk_in: 'Walk-In uses the normal ticket fields. Select this when the requester came directly to IT/support desk.',
+            self_service: 'Self-Service uses the normal ticket fields. Select this when the requester creates the ticket from the portal.',
+            email: 'Email shows extra email fields for sender, recipient, CC, received date, mail client, and message ID.'
+        };
+        sourceHint.textContent = hints[val] || hints.manual;
+        sourceHint.classList.toggle('bg-amber-50', val === 'email');
+        sourceHint.classList.toggle('border-amber-100', val === 'email');
+        sourceHint.classList.toggle('text-amber-700', val === 'email');
+        sourceHint.classList.toggle('bg-blue-50', val !== 'email');
+        sourceHint.classList.toggle('border-blue-100', val !== 'email');
+        sourceHint.classList.toggle('text-blue-700', val !== 'email');
+    }
+}
+
+function filterOwnersByGroup() {
+    const groupSelect = document.getElementById('support_group_select');
+    const ownerSelect = document.getElementById('owner_select');
+    const hint = document.getElementById('assignment_hint');
+    if (!groupSelect || !ownerSelect) return;
+    const selectedGroup = groupSelect.value.trim().toLowerCase();
+    let visibleOwners = 0;
+    ownerSelect.querySelectorAll('option').forEach(option => {
+        if (!option.value) {
+            option.hidden = false;
+            return;
+        }
+        const ownerDepartment = (option.dataset.department || '').trim().toLowerCase();
+        const visible = !selectedGroup || ownerDepartment === selectedGroup;
+        option.hidden = !visible;
+        if (visible) visibleOwners += 1;
+    });
+    if (ownerSelect.selectedOptions[0]?.hidden) ownerSelect.value = '';
+    if (hint) {
+        hint.textContent = selectedGroup
+            ? `${visibleOwners} owner(s) available in selected support group. Leave blank for assignment rules.`
+            : 'No support group selected. Leave ownership blank for auto assignment rules.';
+    }
+}
+filterOwnersByGroup();
+
+// ════════════════════════════════════════════
+//  SUB-CATEGORY
+// ════════════════════════════════════════════
+const SUB_CATS = {{ category_map|tojson }};
+const SOFTWARE_SUBCATEGORY_MAP = {{ software_subcategory_map|tojson }};
+function updateSubcategory() {
+    const cat = document.getElementById('category_select').value;
+    const sel = document.getElementById('sub_category_select');
+    sel.innerHTML = '<option value="">— Select —</option>';
+    (SUB_CATS[cat] || []).forEach(s => {
+        const o = document.createElement('option');
+        o.value = s; o.textContent = s;
+        sel.appendChild(o);
+    });
+    syncSoftwareFromSubcategory();
+}
+function syncSoftwareFromSubcategory() {
+    const category = document.getElementById('category_select').value;
+    const subCategory = document.getElementById('sub_category_select').value;
+    const softwareSelect = document.getElementById('software_select');
+    if (!softwareSelect || category !== 'Software Installation') return;
+    const softwareId = SOFTWARE_SUBCATEGORY_MAP[subCategory];
+    softwareSelect.value = softwareId ? String(softwareId) : '';
+}
+document.getElementById('sub_category_select').addEventListener('change', syncSoftwareFromSubcategory);
+
+// ════════════════════════════════════════════
+//  ASSET FILTER
+// ════════════════════════════════════════════
+const assetData = {
+    {% for asset in all_assets %}
+    '{{ asset.id }}': { tag: '{{ asset.asset_tag }}', type: '{{ asset.asset_type }}' },
+    {% endfor %}
+};
+function filterAssets() {
+    const typeFilter = document.getElementById('asset_type_filter');
+    const type = typeFilter ? typeFilter.value : '';
+    document.getElementById('asset_select').querySelectorAll('option').forEach(o => {
+        o.hidden = type ? (o.dataset.type && o.dataset.type !== type) : false;
+    });
+    document.getElementById('asset_select').value = '';
+    document.getElementById('asset_tag_display').value = '';
+    const typeDisplay = document.getElementById('asset_type_display');
+    if (typeDisplay) typeDisplay.value = '';
+}
+function updateAssetFields() {
+    const select = document.getElementById('asset_select');
+    const d = assetData[select.value];
+    document.getElementById('asset_tag_display').value = d ? d.tag : '';
+    const typeDisplay = document.getElementById('asset_type_display');
+    if (typeDisplay) typeDisplay.value = d ? d.type.replace('_', ' ') : '';
+}
+document.getElementById('asset_select').addEventListener('change', updateAssetFields);
+updateAssetFields();
+
+// ════════════════════════════════════════════
+//  FILE LIST
+// ════════════════════════════════════════════
+function showFileList(input) {
+    const list = document.getElementById('file_list');
+    list.innerHTML = '';
+    Array.from(input.files).forEach(f => {
+        const size = f.size > 1048576 ? (f.size/1048576).toFixed(1)+' MB' : (f.size/1024).toFixed(0)+' KB';
+        const div  = document.createElement('div');
+        div.className = 'flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200';
+        div.innerHTML = `<i class="fas fa-file text-blue-400"></i><span class="flex-1 truncate">${f.name}</span><span class="text-xs text-gray-400">${size}</span>`;
+        list.appendChild(div);
+    });
+}
+
+// ════════════════════════════════════════════
+//  FORM SUBMIT / DRAFT
+// ════════════════════════════════════════════
+function submitDraft() {
+    document.getElementById('save_draft_input').value = '1';
+    syncRTE();
+    document.getElementById('ticket_form').submit();
+}
+document.getElementById('ticket_form').addEventListener('submit', syncRTE);
+</script>
+{% endblock %}

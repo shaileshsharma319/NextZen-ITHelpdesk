@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}Departments - IT HelpDesk{% endblock %}
+{% block content %}
+<div class="space-y-6">
+<div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+    <div>
+        <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">Access Control</span>
+        <h2 class="text-2xl font-bold text-gray-900 mt-3">Departments</h2>
+        <p class="text-gray-500 text-sm mt-1">{{ departments|length }} department(s). Departments validate login and decide default access across tickets, users, assets, licenses, and compliance.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+        <form method="POST" action="{{ url_for('departments.standardize') }}" onsubmit="return confirm('Create missing standard departments and correct descriptions/locations?')" class="inline">
+            <button class="ticket-action-btn border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700">
+                <i class="fas fa-wand-magic-sparkles"></i> Standardize
+            </button>
+        </form>
+        <a href="{{ url_for('departments.create') }}" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white">
+            <i class="fas fa-plus"></i> Add Department
+        </a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="bg-white rounded-2xl shadow p-5 border-t-4 border-blue-500">
+        <h3 class="font-semibold text-gray-900 flex items-center gap-2"><i class="fas fa-headset text-blue-600"></i> Helpdesk Access</h3>
+        <p class="text-sm text-gray-500 mt-2">IT Department Admin and IT Support Admin get the full ticket queue, assignment, internal notes, email fetch, status changes, and ownership controls.</p>
+        <div class="flex flex-wrap gap-2 mt-4 text-xs">
+            <span class="active-chip">Full Queue</span>
+            <span class="active-chip">Assign Tickets</span>
+            <span class="active-chip">Internal Notes</span>
+        </div>
+    </div>
+    <div class="bg-white rounded-2xl shadow p-5 border-t-4 border-teal-500">
+        <h3 class="font-semibold text-gray-900 flex items-center gap-2"><i class="fas fa-laptop text-teal-600"></i> IT Operations</h3>
+        <p class="text-sm text-gray-500 mt-2">IT Department Admin gets inventory, software, license pages, compliance, and assets. Basic users can create and follow only their own tickets.</p>
+        <div class="flex flex-wrap gap-2 mt-4 text-xs">
+            <span class="active-chip">Inventory</span>
+            <span class="active-chip">Licenses</span>
+            <span class="active-chip">Compliance</span>
+        </div>
+    </div>
+    <div class="bg-white rounded-2xl shadow p-5 border-t-4 border-slate-500">
+        <h3 class="font-semibold text-gray-900 flex items-center gap-2"><i class="fas fa-user-shield text-slate-600"></i> Basic Users</h3>
+        <p class="text-sm text-gray-500 mt-2">All department basic users can log in, create tickets, add public replies to their own tickets, and view their own ticket history.</p>
+        <div class="flex flex-wrap gap-2 mt-4 text-xs">
+            <span class="active-chip">Create Ticket</span>
+            <span class="active-chip">Own Tickets</span>
+            <span class="active-chip">Public Reply</span>
+        </div>
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-6 py-3 text-left">#</th>
+                <th class="px-6 py-3 text-left">Name</th>
+                <th class="px-6 py-3 text-left">Description</th>
+                <th class="px-6 py-3 text-left">Access / Use</th>
+                <th class="px-6 py-3 text-left">Location</th>
+                <th class="px-6 py-3 text-left">Users</th>
+                <th class="px-6 py-3 text-left">Assets</th>
+                <th class="px-6 py-3 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for dept in departments %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-3 text-gray-400">{{ dept.id }}</td>
+                <td class="px-6 py-3 font-medium text-gray-800">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-building text-indigo-500 text-xs"></i>
+                        </div>
+                        {{ dept.name }}
+                    </div>
+                </td>
+                <td class="px-6 py-3 text-gray-500">{{ dept.description or '-' }}</td>
+                <td class="px-6 py-3 text-gray-500 max-w-xs">
+                    {{ standard_departments.get(dept.name, {}).get('access_summary', 'Custom department. Assign users and assets as needed.') }}
+                </td>
+                <td class="px-6 py-3 text-gray-500">{{ dept.location or '-' }}</td>
+                <td class="px-6 py-3">
+                    <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                        {{ dept.users|length }}
+                    </span>
+                </td>
+                <td class="px-6 py-3">
+                    <span class="bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                        {{ dept.assets|length }}
+                    </span>
+                </td>
+                <td class="px-6 py-3">
+                    <div class="flex items-center justify-end gap-2">
+                    <a href="{{ url_for('departments.edit', dept_id=dept.id) }}" class="icon-btn" title="Edit"><i class="fas fa-pen"></i></a>
+                    <form method="POST" action="{{ url_for('departments.delete', dept_id=dept.id) }}"
+                        onsubmit="return confirm('Delete {{ dept.name }}?')" class="inline">
+                        <button type="submit" class="icon-btn text-red-600" title="Delete"><i class="fas fa-trash"></i></button>
+                    </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="px-6 py-8 text-center text-gray-400">No departments yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</div>
+{% endblock %}

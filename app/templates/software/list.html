@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% block title %}Software Overview - IT HelpDesk{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">Software Overview</h2>
+        <p class="text-gray-500 text-sm mt-1">{{ software_list|length }} software title(s)</p>
+    </div>
+    <a href="{{ url_for('software.create') }}"
+        class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2">
+        <i class="fas fa-plus"></i> Add Software
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="bg-white rounded-xl shadow p-4 mb-5">
+    <form method="GET" class="flex flex-wrap gap-3 items-end">
+        <div class="flex-1 min-w-40">
+            <label class="block text-xs text-gray-500 mb-1">Search Software</label>
+            <div class="relative">
+                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                <input type="text" name="search" value="{{ search }}"
+                    placeholder="Software name..." class="form-input pl-9">
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Category</label>
+            <select name="category" class="filter-select">
+                <option value="">All Categories</option>
+                {% for c in ['os','office','security','development','design','communication','utility','other'] %}
+                <option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ c.title() }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Edition</label>
+            <select name="edition" class="filter-select">
+                <option value="">All Editions</option>
+                <option value="msdn"    {% if request.args.get('edition')=='msdn'    %}selected{% endif %}>MSDN</option>
+                <option value="oem_pro" {% if request.args.get('edition')=='oem_pro' %}selected{% endif %}>OEM Pro</option>
+                <option value="oem_sl"  {% if request.args.get('edition')=='oem_sl'  %}selected{% endif %}>OEM Single Language</option>
+                <option value="retail"  {% if request.args.get('edition')=='retail'  %}selected{% endif %}>Retail</option>
+                <option value="volume"  {% if request.args.get('edition')=='volume'  %}selected{% endif %}>Volume License</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">User</label>
+            <select name="user_id" class="filter-select">
+                <option value="">All Users</option>
+                {% for u in all_users %}
+                <option value="{{ u.id }}" {% if user_id == u.id|string %}selected{% endif %}>{{ u.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">Apply</button>
+        <a href="{{ url_for('software.list') }}" class="text-sm text-gray-500 py-2">Reset</a>
+    </form>
+</div>
+
+<!-- Overview Table -->
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3 text-left">#</th>
+                    <th class="px-4 py-3 text-left">Software Name</th>
+                    <th class="px-4 py-3 text-left">Version</th>
+                    <th class="px-4 py-3 text-left">Vendor</th>
+                    <th class="px-4 py-3 text-left">Category</th>
+                    <th class="px-4 py-3 text-left">License Type</th>
+                    <th class="px-4 py-3 text-left">Edition</th>
+                    <th class="px-4 py-3 text-left">License Seats</th>
+                    <th class="px-4 py-3 text-left">License Key</th>
+                    <th class="px-4 py-3 text-left">License Expiry</th>
+                    <th class="px-4 py-3 text-left">Notes</th>
+                    <th class="px-4 py-3 text-left">User Name</th>
+                    <th class="px-4 py-3 text-left">Hostname</th>
+                    <th class="px-4 py-3 text-left">IP Address</th>
+                    <th class="px-4 py-3 text-left">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for sw in software_list %}
+                <tr class="hover:bg-gray-50 {% if sw.is_license_expired %}bg-red-50{% endif %}">
+                    <td class="px-4 py-3 text-gray-400 text-xs align-top">{{ loop.index }}</td>
+
+                    <!-- Software Name -->
+                    <td class="px-4 py-3 align-top">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-compact-disc text-indigo-500 text-xs"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-800">{{ sw.name }}</p>
+                                {% if sw.is_license_expired %}
+                                <span class="text-xs text-red-500"><i class="fas fa-exclamation-circle"></i> Expired</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+
+                    <td class="px-4 py-3 font-mono text-xs text-gray-500 align-top">{{ sw.version or '-' }}</td>
+                    <td class="px-4 py-3 text-xs text-gray-600 align-top">{{ sw.vendor or '-' }}</td>
+
+                    <td class="px-4 py-3 align-top">
+                        <span class="badge badge-sw-category-{{ sw.category }}">{{ sw.category.title() }}</span>
+                    </td>
+
+                    <td class="px-4 py-3 align-top">
+                        <span class="badge badge-sw-license-{{ sw.license_type }}">{{ sw.license_type.replace('_',' ').title() }}</span>
+                    </td>
+
+                    <td class="px-4 py-3 align-top">
+                        {% if sw.license_edition %}
+                        {% set ed_map = {'msdn': ('MSDN','bg-blue-100 text-blue-700'), 'oem_pro': ('OEM Pro','bg-orange-100 text-orange-700'), 'oem_sl': ('OEM Single Lang','bg-yellow-100 text-yellow-700'), 'retail': ('Retail','bg-green-100 text-green-700'), 'volume': ('Volume','bg-purple-100 text-purple-700'), 'other': ('Other','bg-gray-100 text-gray-500')} %}
+                        {% set ed = ed_map.get(sw.license_edition, ('Other','bg-gray-100 text-gray-500')) %}
+                        <span class="text-xs px-2 py-0.5 rounded font-medium {{ ed[1] }}">{{ ed[0] }}</span>
+                        {% else %}
+                        <span class="text-gray-300 text-xs">—</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="px-4 py-3 text-center text-xs text-gray-600 align-top">
+                        <span class="font-medium text-gray-800">{{ sw.installed_count }}</span>
+                        <span class="text-gray-400"> / {{ sw.seats }}</span>
+                    </td>
+
+                    <td class="px-4 py-3 font-mono text-xs text-gray-400 max-w-xs truncate align-top">{{ sw.license_key or '-' }}</td>
+
+                    <td class="px-4 py-3 text-xs align-top {% if sw.is_license_expired %}text-red-600 font-medium{% else %}text-gray-400{% endif %}">
+                        {{ sw.license_expiry.strftime('%d %b %Y') if sw.license_expiry else '-' }}
+                    </td>
+
+                    <td class="px-4 py-3 text-xs text-gray-400 max-w-xs truncate align-top">{{ sw.notes or '-' }}</td>
+
+                    <!-- User Name -->
+                    <td class="px-4 py-3 align-top">
+                        {% if sw.installations %}
+                        <div class="space-y-2">
+                            {% for inst in sw.installations %}
+                            <div class="flex items-center gap-2">
+                                {% if inst.asset.assigned_user %}
+                                <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                    {{ inst.asset.assigned_user.name[0].upper() }}
+                                </div>
+                                <div class="text-xs">
+                                    <p class="font-medium text-gray-800">{{ inst.asset.assigned_user.name }}</p>
+                                    <p class="text-gray-400">{{ inst.asset.assigned_user.department.name if inst.asset.assigned_user.department else '' }}</p>
+                                </div>
+                                {% else %}
+                                <span class="text-gray-400 text-xs">Unassigned</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <span class="text-gray-400 text-xs">-</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Hostname -->
+                    <td class="px-4 py-3 align-top">
+                        {% if sw.installations %}
+                        <div class="space-y-2">
+                            {% for inst in sw.installations %}
+                            <div class="py-0.5">
+                                {% if inst.asset.hostname %}
+                                <span class="font-mono text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{{ inst.asset.hostname }}</span>
+                                {% else %}<span class="text-gray-400 text-xs">-</span>{% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <span class="text-gray-400 text-xs">-</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- IP Address -->
+                    <td class="px-4 py-3 align-top">
+                        {% if sw.installations %}
+                        <div class="space-y-2">
+                            {% for inst in sw.installations %}
+                            <div class="flex items-center gap-1 py-0.5">
+                                {% if inst.asset.ip_address %}
+                                <span class="font-mono text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded">{{ inst.asset.ip_address }}</span>
+                                {% else %}<span class="text-gray-400 text-xs">-</span>{% endif %}
+                                <form method="POST" action="{{ url_for('software.uninstall', install_id=inst.id) }}"
+                                    onsubmit="return confirm('Remove {{ sw.name }} from {{ inst.asset.name }}?')">
+                                    <button type="submit" class="text-red-400 hover:text-red-600 ml-1">
+                                        <i class="fas fa-times text-xs"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <span class="text-gray-400 text-xs">-</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Action -->
+                    <td class="px-4 py-3 align-top">
+                        <div class="flex gap-2">
+                            <a href="{{ url_for('software.edit', software_id=sw.id) }}"
+                                class="text-xs text-yellow-600 hover:underline">Edit</a>
+                            <form method="POST" action="{{ url_for('software.delete', software_id=sw.id) }}"
+                                onsubmit="return confirm('Delete {{ sw.name }} entirely?')">
+                                <button type="submit" class="text-xs text-red-500 hover:underline">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="15" class="px-6 py-10 text-center text-gray-400">
+                        <i class="fas fa-compact-disc text-3xl mb-2 block"></i>
+                        No software found.
+                        <a href="{{ url_for('software.create') }}" class="text-blue-500 hover:underline ml-1">Add software →</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

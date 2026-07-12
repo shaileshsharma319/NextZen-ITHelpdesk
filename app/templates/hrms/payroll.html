@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block title %}Payroll & Tax Engine{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div><span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">Payroll</span><h1 class="text-2xl font-bold text-gray-900 mt-3">Payroll & Indian Tax Engine</h1><p class="text-sm text-gray-500 mt-1">Maintain CTC, salary structure, old/new tax regime, PF, ESIC, PT, and bank details.</p></div>
+        <a href="{{ url_for('hrms.compliance') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-scale-balanced"></i> Compliance</a>
+    </div>
+
+    <form method="GET" class="ticket-filter-panel">
+        <label class="block text-xs text-gray-500 mb-1">Employee</label>
+        <div class="flex gap-2">
+            <select name="employee_id" class="filter-select flex-1">
+                {% for user in employees %}<option value="{{ user.id }}" {% if selected_employee and selected_employee.id == user.id %}selected{% endif %}>{{ user.name }} - {{ user.email }}</option>{% endfor %}
+            </select>
+            <button class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-search"></i> Load</button>
+        </div>
+    </form>
+
+    {% if selected_employee and selected_profile %}
+    <form method="POST" class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
+        <input type="hidden" name="user_id" value="{{ selected_employee.id }}">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-4">
+            <h2 class="font-semibold text-gray-800">Salary Structure - {{ selected_employee.name }}</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label class="form-label">Annual CTC</label><input type="number" step="0.01" name="annual_ctc" value="{{ selected_profile.annual_ctc or 0 }}" class="form-input salary-annual-ctc bg-gray-50" readonly></div>
+                <div><label class="form-label">FBP</label><input type="number" step="0.01" name="flexible_benefit_plan" value="{{ selected_profile.flexible_benefit_plan or 0 }}" class="form-input salary-fbp bg-gray-50" readonly></div>
+                <div><label class="form-label">Variable Pay</label><input type="number" step="0.01" name="variable_pay" value="{{ selected_profile.variable_pay or 0 }}" class="form-input"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label class="form-label">Basic %</label><input type="number" step="0.01" name="basic_percent" value="{{ selected_profile.basic_percent or 40 }}" class="form-input"></div>
+                <div><label class="form-label">HRA %</label><input type="number" step="0.01" name="hra_percent" value="{{ selected_profile.hra_percent or 20 }}" class="form-input"></div>
+                <div><label class="form-label">Effective From</label><input type="date" name="effective_from" class="form-input"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label class="form-label">Tax Regime</label><select name="tax_regime" class="filter-select w-full"><option value="new" {% if selected_profile.tax_regime == 'new' %}selected{% endif %}>New Regime</option><option value="old" {% if selected_profile.tax_regime == 'old' %}selected{% endif %}>Old Regime</option></select></div>
+                <div><label class="form-label">PAN</label><input name="pan_number" value="{{ selected_profile.pan_number or '' }}" class="form-input"></div>
+                <div><label class="form-label">UAN</label><input name="uan_number" value="{{ selected_profile.uan_number or '' }}" class="form-input"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label class="form-label">PF Number</label><input name="pf_number" value="{{ selected_profile.pf_number or '' }}" class="form-input"></div>
+                <div><label class="form-label">ESI Number</label><input name="esi_number" value="{{ selected_profile.esi_number or '' }}" class="form-input"></div>
+                <div><label class="form-label">EPS Number</label><input name="eps_number" value="{{ selected_profile.eps_number or '' }}" class="form-input"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label class="form-label">Bank Name</label><input name="bank_name" value="{{ selected_profile.bank_name or '' }}" class="form-input"></div>
+                <div><label class="form-label">IFSC</label><input name="ifsc_code" value="{{ selected_profile.ifsc_code or '' }}" class="form-input"></div>
+                <div><label class="form-label">Change Reason</label><input name="change_reason" class="form-input" placeholder="Annual revision, promotion"></div>
+            </div>
+            <div><label class="form-label">Bank Account</label><input name="bank_account" value="{{ selected_profile.bank_account or '' }}" class="form-input"></div>
+            <div class="grid grid-cols-3 gap-3">
+                <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" name="pf_enabled" {% if selected_profile.pf_enabled %}checked{% endif %}> PF</label>
+                <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" name="esi_enabled" {% if selected_profile.esi_enabled %}checked{% endif %}> ESIC</label>
+                <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" name="pt_enabled" {% if selected_profile.pt_enabled %}checked{% endif %}> PT</label>
+            </div>
+            <div class="border border-gray-100 rounded-2xl overflow-hidden" data-salary-editor>
+                <div class="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-semibold text-gray-900">CTC Breakup Components</h3>
+                        <p class="text-xs text-gray-500">Edit each annual component amount. Annual CTC and FBP calculate automatically.</p>
+                    </div>
+                    <span class="text-sm font-bold text-gray-900">Total INR <span data-salary-total>{{ "%.2f"|format(salary_component_total or 0) }}</span></span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-white text-gray-500">
+                            <tr><th class="px-4 py-3 text-left">Component</th><th class="px-4 py-3 text-right">Annual Amount</th><th class="px-4 py-3 text-center">FBP</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for component in salary_components %}
+                            <tr>
+                                <td class="px-4 py-2 min-w-[260px]">
+                                    <input name="component_name[]" value="{{ component.name }}" class="form-input text-sm">
+                                    <input type="hidden" name="component_group[]" value="{{ component.component_group or 'ctc' }}">
+                                </td>
+                                <td class="px-4 py-2 min-w-[180px]"><input type="number" step="0.01" min="0" name="component_amount[]" value="{{ component.amount or 0 }}" class="form-input text-sm text-right salary-component-amount"></td>
+                                <td class="px-4 py-2 text-center"><input type="checkbox" name="component_fbp[]" value="{{ component.name }}" class="salary-component-fbp" {% if component.is_fbp %}checked{% endif %}></td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="bg-blue-50">
+                                <td class="px-4 py-3 font-bold text-gray-900">TOTAL CTC</td>
+                                <td class="px-4 py-3 text-right font-bold text-gray-900">INR <span data-salary-total>{{ "%.2f"|format(salary_component_total or 0) }}</span></td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <button class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-save"></i> Save Payroll Profile</button>
+        </div>
+        <aside class="space-y-4">
+            <div class="ticket-stat-card ticket-stat-blue"><div><p class="text-xs text-gray-500 font-medium">Monthly CTC</p><p class="text-2xl font-bold text-gray-900">INR <span data-salary-monthly>{{ "%.0f"|format(selected_profile.monthly_ctc or 0) }}</span></p></div><span><i class="fas fa-calendar"></i></span></div>
+            <div class="ticket-stat-card ticket-stat-amber"><div><p class="text-xs text-gray-500 font-medium">Taxable Income</p><p class="text-2xl font-bold text-gray-900">INR <span data-salary-taxable>{{ "%.0f"|format(selected_profile.estimated_taxable_income or 0) }}</span></p></div><span><i class="fas fa-calculator"></i></span></div>
+            <div class="ticket-stat-card ticket-stat-red"><div><p class="text-xs text-gray-500 font-medium">Annual Tax Est.</p><p class="text-2xl font-bold text-gray-900">₹{{ "%.0f"|format(tax_estimate or 0) }}</p></div><span><i class="fas fa-file-invoice"></i></span></div>
+        </aside>
+    </form>
+    {% endif %}
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const salaryEditor = document.querySelector('[data-salary-editor]');
+    if (!salaryEditor) return;
+    const amountInputs = Array.from(document.querySelectorAll('.salary-component-amount'));
+    const fbpInputs = Array.from(document.querySelectorAll('.salary-component-fbp'));
+    const annualInput = document.querySelector('.salary-annual-ctc');
+    const fbpInput = document.querySelector('.salary-fbp');
+    const totalLabels = Array.from(document.querySelectorAll('[data-salary-total]'));
+    const monthlyLabel = document.querySelector('[data-salary-monthly]');
+    const taxableLabel = document.querySelector('[data-salary-taxable]');
+    const formatMoney = (amount, decimals = 2) => Number(amount || 0).toLocaleString('en-IN', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+    });
+    function recalculateSalary() {
+        let total = 0;
+        let fbpTotal = 0;
+        amountInputs.forEach((input, index) => {
+            const amount = Number.parseFloat(input.value || '0') || 0;
+            total += amount;
+            if (fbpInputs[index] && fbpInputs[index].checked) {
+                fbpTotal += amount;
+            }
+        });
+        if (annualInput) annualInput.value = total.toFixed(2);
+        if (fbpInput) fbpInput.value = fbpTotal.toFixed(2);
+        totalLabels.forEach((label) => label.textContent = formatMoney(total));
+        if (monthlyLabel) monthlyLabel.textContent = formatMoney(total / 12, 0);
+        if (taxableLabel) taxableLabel.textContent = formatMoney(Math.max(total - 50000, 0), 0);
+    }
+    amountInputs.forEach((input) => input.addEventListener('input', recalculateSalary));
+    fbpInputs.forEach((input) => input.addEventListener('change', recalculateSalary));
+    recalculateSalary();
+});
+</script>
+{% endblock %}

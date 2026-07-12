@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if mode == 'edit' else 'New' }} Audit Policy{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full">Policy Register</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">{{ 'Edit Policy' if mode == 'edit' else 'Create Policy' }}</h1>
+            <p class="text-sm text-gray-500 mt-1">Maintain company policies, controls, ownership, reviews, and acknowledgement rules.</p>
+        </div>
+        <a href="{{ url_for('audit.index') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-arrow-left"></i> Back</a>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="form-label">Policy Code *</label>
+                    <input type="text" name="code" value="{{ policy.code or '' }}" class="form-input uppercase" placeholder="IT-POL-001" required>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="form-label">Title *</label>
+                    <input type="text" name="title" value="{{ policy.title or '' }}" class="form-input" placeholder="Password and Account Security Policy" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="form-label">Category</label>
+                    <select name="category" class="filter-select w-full">
+                        <option value="">Select category</option>
+                        {% for item in categories %}
+                        <option value="{{ item }}" {% if policy.category == item %}selected{% endif %}>{{ item }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Risk Level</label>
+                    <select name="risk_level" class="filter-select w-full">
+                        {% for item in ['low','medium','high','critical'] %}
+                        <option value="{{ item }}" {% if policy.risk_level == item %}selected{% endif %}>{{ item.title() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Status</label>
+                    <select name="status" class="filter-select w-full">
+                        {% for item in ['draft','active','under_review','retired'] %}
+                        <option value="{{ item }}" {% if policy.status == item %}selected{% endif %}>{{ item.replace('_',' ').title() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="form-label">Description</label>
+                <textarea name="description" rows="4" class="form-input" placeholder="Policy purpose and overview">{{ policy.description or '' }}</textarea>
+            </div>
+            <div>
+                <label class="form-label">Scope</label>
+                <textarea name="scope" rows="4" class="form-input" placeholder="Applicable departments, people, systems, or locations">{{ policy.scope or '' }}</textarea>
+            </div>
+            <div class="border border-gray-100 rounded-2xl p-4 bg-gray-50">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="font-semibold text-gray-900">Step-by-Step Evidence</h2>
+                        <p class="text-xs text-gray-500 mt-1">Type each permission/access step and upload the matching screenshot below it.</p>
+                    </div>
+                    <button type="button" id="addEvidenceStep" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-white">
+                        <i class="fas fa-plus"></i> Add Step
+                    </button>
+                </div>
+                <div id="evidenceSteps" class="space-y-3">
+                    {% for step in form_steps %}
+                    <div class="evidence-step bg-white border border-gray-100 rounded-xl p-4">
+                        <div class="flex items-center justify-between gap-3 mb-3">
+                            <span class="evidence-step-label text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">Step {{ loop.index }}</span>
+                            <button type="button" class="removeEvidenceStep text-xs font-semibold text-red-600 hover:text-red-700">Remove</button>
+                        </div>
+                        <label class="form-label">Step Title</label>
+                        <input type="text" name="evidence_steps" value="{{ step }}" class="form-input" placeholder="{{ loop.index }}. GIT Access and Permission :">
+                        <label class="form-label mt-3">Screenshot Proof</label>
+                        <label class="attachment-drop cursor-pointer !p-4">
+                            <input type="file" name="evidence_attachments" class="hidden" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp">
+                            <span class="inline-flex items-center gap-2 text-sm font-medium text-gray-700"><i class="fas fa-image text-blue-500"></i> Upload screenshot for this step</span>
+                            <span class="text-xs text-gray-400 selected-file-name">PNG, JPG, JPEG, GIF, WEBP, BMP</span>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-4">
+                    <label class="form-label">Additional Controls / Notes</label>
+                    <textarea name="additional_controls" rows="4" class="form-input" placeholder="Optional controls, approval notes, review rules, or other requirements">{{ additional_controls or '' }}</textarea>
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Other Supporting Documents</label>
+                <label class="attachment-drop cursor-pointer">
+                    <input type="file" name="attachments" multiple class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.gif,.webp,.bmp">
+                    <span class="inline-flex items-center gap-2 text-sm font-medium text-gray-700"><i class="fas fa-cloud-arrow-up text-blue-500"></i> Upload extra files</span>
+                    <span class="text-xs text-gray-400">Optional PDF, Word, Excel, PowerPoint, text, CSV, or extra images.</span>
+                </label>
+            </div>
+        </div>
+
+        <aside class="space-y-4">
+            <div class="bg-white rounded-2xl shadow p-5 space-y-4">
+                <h2 class="font-semibold text-gray-800">Ownership & Review</h2>
+                <div>
+                    <label class="form-label">Owner</label>
+                    <select name="owner_id" class="filter-select w-full">
+                        <option value="">Unassigned</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}" {% if policy.owner_id == user.id %}selected{% endif %}>{{ user.name }} - {{ user.role_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Version</label>
+                    <input type="text" name="version" value="{{ policy.version or '1.0' }}" class="form-input">
+                </div>
+                <div>
+                    <label class="form-label">Effective Date</label>
+                    <input type="date" name="effective_date" value="{{ policy.effective_date.isoformat() if policy.effective_date else '' }}" class="form-input">
+                </div>
+                <div>
+                    <label class="form-label">Review Date</label>
+                    <input type="date" name="review_date" value="{{ policy.review_date.isoformat() if policy.review_date else '' }}" class="form-input">
+                </div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" name="requires_acknowledgement" class="rounded border-gray-300" {% if policy.requires_acknowledgement %}checked{% endif %}>
+                    Require employee acknowledgement
+                </label>
+            </div>
+
+            {% if policy.attachments %}
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800">Current Files</h2>
+                <div class="mt-3 space-y-2">
+                    {% for file in policy.attachments %}
+                    <div class="border border-gray-100 rounded-lg p-3 flex items-center justify-between gap-3">
+                        <a href="{{ url_for('audit.download_attachment', attachment_id=file.id) }}" class="text-sm text-blue-600 hover:text-blue-700 truncate"><i class="fas fa-paperclip mr-1"></i>{{ file.original_filename }}</a>
+                        <button form="deleteAuditAttachment{{ file.id }}" class="text-red-600 hover:text-red-700 text-xs font-semibold" onclick="return confirm('Delete this file?')">Delete</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="bg-white rounded-2xl shadow p-5">
+                <button type="submit" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white w-full justify-center">
+                    <i class="fas fa-save"></i> Save Policy
+                </button>
+            </div>
+        </aside>
+    </form>
+    {% for file in policy.attachments %}
+    <form id="deleteAuditAttachment{{ file.id }}" method="POST" action="{{ url_for('audit.delete_attachment', attachment_id=file.id) }}"></form>
+    {% endfor %}
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const stepsWrap = document.getElementById('evidenceSteps');
+    const addButton = document.getElementById('addEvidenceStep');
+    if (!stepsWrap || !addButton) return;
+
+    const renumber = () => {
+        stepsWrap.querySelectorAll('.evidence-step').forEach((step, index) => {
+            const number = index + 1;
+            const label = step.querySelector('.evidence-step-label');
+            const input = step.querySelector('input[name="evidence_steps"]');
+            if (label) label.textContent = `Step ${number}`;
+            if (input && !input.value.trim()) input.placeholder = `${number}. Access Permission :`;
+        });
+    };
+
+    const bindStep = (step) => {
+        const remove = step.querySelector('.removeEvidenceStep');
+        const fileInput = step.querySelector('input[type="file"]');
+        const fileName = step.querySelector('.selected-file-name');
+        if (remove) {
+            remove.addEventListener('click', () => {
+                if (stepsWrap.querySelectorAll('.evidence-step').length > 1) {
+                    step.remove();
+                    renumber();
+                }
+            });
+        }
+        if (fileInput && fileName) {
+            fileInput.addEventListener('change', () => {
+                fileName.textContent = fileInput.files.length ? fileInput.files[0].name : 'PNG, JPG, JPEG, GIF, WEBP, BMP';
+            });
+        }
+    };
+
+    stepsWrap.querySelectorAll('.evidence-step').forEach(bindStep);
+    addButton.addEventListener('click', () => {
+        const source = stepsWrap.querySelector('.evidence-step');
+        const clone = source.cloneNode(true);
+        clone.querySelector('input[name="evidence_steps"]').value = '';
+        clone.querySelector('input[type="file"]').value = '';
+        clone.querySelector('.selected-file-name').textContent = 'PNG, JPG, JPEG, GIF, WEBP, BMP';
+        stepsWrap.appendChild(clone);
+        bindStep(clone);
+        renumber();
+    });
+    renumber();
+});
+</script>
+{% endblock %}

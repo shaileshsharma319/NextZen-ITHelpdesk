@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Asset Inventory - IT HelpDesk{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">Asset Inventory</h2>
+        <p class="text-gray-500 text-sm mt-1">{{ assets.total }} asset(s)</p>
+    </div>
+    <a href="{{ url_for('assets.create') }}"
+        class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2">
+        <i class="fas fa-plus"></i> Add Asset
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="bg-white rounded-xl shadow p-4 mb-5">
+    <form method="GET" class="flex flex-wrap gap-3 items-end">
+        <div class="flex-1 min-w-48">
+            <label class="block text-xs text-gray-500 mb-1">Search</label>
+            <div class="relative">
+                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                <input type="text" name="search" value="{{ search }}" placeholder="Name, hostname, IP..."
+                    class="form-input pl-9">
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Type</label>
+            <select name="type" class="filter-select">
+                <option value="">All Types</option>
+                {% for t in ['computer','monitor','printer','phone','server','network','other'] %}
+                <option value="{{ t }}" {% if asset_type == t %}selected{% endif %}>{{ t.title() }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Status</label>
+            <select name="status" class="filter-select">
+                <option value="">All Status</option>
+                {% for s in ['available','in_use','under_repair','retired'] %}
+                <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s.replace('_',' ').title() }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">Apply</button>
+        <a href="{{ url_for('assets.list') }}" class="text-sm text-gray-500 py-2">Reset</a>
+    </form>
+</div>
+
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+            <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-3 py-3 text-left">SR</th>
+                    <th class="px-3 py-3 text-left">Site Name</th>
+                    <th class="px-3 py-3 text-left">Asset Type</th>
+                    <th class="px-3 py-3 text-left">Asset Tag</th>
+                    <th class="px-3 py-3 text-left">Hostname</th>
+                    <th class="px-3 py-3 text-left">IP Address</th>
+                    <th class="px-3 py-3 text-left">User Name</th>
+                    <th class="px-3 py-3 text-left">Team Leader</th>
+                    <th class="px-3 py-3 text-left">Previous Users</th>
+                    <th class="px-3 py-3 text-left">Designation</th>
+                    <th class="px-3 py-3 text-left">CPU</th>
+                    <th class="px-3 py-3 text-left">CPU SR No.</th>
+                    <th class="px-3 py-3 text-left">Motherboard</th>
+                    <th class="px-3 py-3 text-left">SSD</th>
+                    <th class="px-3 py-3 text-left">OS</th>
+                    <th class="px-3 py-3 text-left">Full SR No.</th>
+                    <th class="px-3 py-3 text-left">RAM</th>
+                    <th class="px-3 py-3 text-left">RAM Type</th>
+                    <th class="px-3 py-3 text-left">HDD</th>
+                    <th class="px-3 py-3 text-left">Monitor</th>
+                    <th class="px-3 py-3 text-left">Mouse</th>
+                    <th class="px-3 py-3 text-left">Keyboard</th>
+                    <th class="px-3 py-3 text-left">Status</th>
+                    <th class="px-3 py-3 text-left">Remarks</th>
+                    <th class="px-3 py-3 text-left">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for asset in assets.items %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-3 py-2.5 text-gray-400">{{ loop.index + (assets.page - 1) * assets.per_page }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.site_name or '-' }}</td>
+                    <td class="px-3 py-2.5"><span class="badge badge-asset-{{ asset.asset_type }}">{{ asset.asset_type.title() }}</span></td>
+                    <td class="px-3 py-2.5 font-mono text-gray-500">{{ asset.asset_tag }}</td>
+                    <td class="px-3 py-2.5">
+                        {% if asset.hostname %}<span class="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-mono">{{ asset.hostname }}</span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td class="px-3 py-2.5">
+                        {% if asset.ip_address %}<span class="bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-mono">{{ asset.ip_address }}</span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td class="px-3 py-2.5 font-medium text-gray-800">{{ asset.assigned_user.name if asset.assigned_user else '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.team_leader or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-500">{{ asset.previous_users or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-500">{{ asset.designation or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.cpu_model or '-' }}</td>
+                    <td class="px-3 py-2.5 font-mono text-gray-500">{{ asset.cpu_serial or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.motherboard or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.ssd_model or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.operating_system or '-' }}</td>
+                    <td class="px-3 py-2.5 font-mono text-gray-500">{{ asset.full_serial_number or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.ram_details or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.ram_type or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.internal_hdd or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.monitor_model or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.mouse_model or '-' }}</td>
+                    <td class="px-3 py-2.5 text-gray-600">{{ asset.keyboard_model or '-' }}</td>
+                    <td class="px-3 py-2.5"><span class="badge badge-asset-status-{{ asset.status }}">{{ asset.status.replace('_',' ').title() }}</span></td>
+                    <td class="px-3 py-2.5 text-gray-500 max-w-xs truncate">{{ asset.remarks or '-' }}</td>
+                    <td class="px-3 py-2.5">
+                        <div class="flex gap-2">
+                            <a href="{{ url_for('assets.detail', asset_id=asset.id) }}" class="text-blue-600 hover:underline">View</a>
+                            <a href="{{ url_for('assets.edit', asset_id=asset.id) }}" class="text-yellow-600 hover:underline">Edit</a>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="25" class="px-6 py-8 text-center text-gray-400">No assets found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if assets.pages > 1 %}
+    <div class="px-6 py-4 border-t flex items-center gap-2 text-sm">
+        {% if assets.has_prev %}
+        <a href="{{ url_for('assets.list', page=assets.prev_num, type=asset_type, status=status) }}" class="px-3 py-1 rounded border hover:bg-gray-100">Prev</a>
+        {% endif %}
+        <span class="text-gray-500">Page {{ assets.page }} of {{ assets.pages }}</span>
+        {% if assets.has_next %}
+        <a href="{{ url_for('assets.list', page=assets.next_num, type=asset_type, status=status) }}" class="px-3 py-1 rounded border hover:bg-gray-100">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

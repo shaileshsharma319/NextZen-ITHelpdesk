@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block title %}{{ policy.title }}{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full">{{ policy.code }} &bull; v{{ policy.version }}</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">{{ policy.title }}</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ policy.category or 'Company Policy' }} &bull; {{ policy.status.replace('_',' ').title() }}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ url_for('audit.index') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-arrow-left"></i> Back</a>
+            <a href="{{ url_for('audit.download_policy', policy_id=policy.id) }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-download"></i> Download</a>
+            <a href="{{ url_for('audit.download_policy_word', policy_id=policy.id) }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-file-word"></i> Word</a>
+            {% if can_manage %}
+            <a href="{{ url_for('audit.edit_policy', policy_id=policy.id) }}" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-pen"></i> Edit</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
+        <div class="space-y-6">
+            <div class="bg-white rounded-2xl shadow p-6">
+                <div class="prose max-w-none">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-3">Description</h2>
+                    <p class="text-gray-600 whitespace-pre-line">{{ policy.description or 'No description added.' }}</p>
+                    <h2 class="text-lg font-semibold text-gray-900 mt-6 mb-3">Scope</h2>
+                    <p class="text-gray-600 whitespace-pre-line">{{ policy.scope or 'No scope added.' }}</p>
+                    <h2 class="text-lg font-semibold text-gray-900 mt-6 mb-3">Controls / Requirements</h2>
+                    {% if step_evidence %}
+                    <div class="space-y-6">
+                        {% for item in step_evidence %}
+                        <div class="border border-gray-100 rounded-xl p-4 bg-gray-50">
+                            <p class="font-semibold text-gray-900">{{ item.text }}</p>
+                            {% if item.attachment %}
+                            <a href="{{ url_for('audit.download_attachment', attachment_id=item.attachment.id) }}" class="block mt-3 border border-gray-200 rounded-lg overflow-hidden bg-white">
+                                <img src="{{ url_for('audit.download_attachment', attachment_id=item.attachment.id, inline=1) }}" alt="{{ item.attachment.original_filename }}" class="w-full max-h-[520px] object-contain bg-white">
+                                <span class="block text-xs text-gray-500 px-3 py-2"><i class="fas fa-image mr-1"></i>{{ item.attachment.original_filename }}</span>
+                            </a>
+                            {% else %}
+                            <p class="text-sm text-amber-600 mt-2"><i class="fas fa-triangle-exclamation mr-1"></i>No screenshot attached for this step.</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        {% if extra_control_lines %}
+                        <div class="border border-gray-100 rounded-xl p-4 bg-white">
+                            <p class="font-semibold text-gray-900 mb-2">Additional Controls</p>
+                            <div class="text-gray-700 whitespace-pre-line">{{ extra_control_lines|join('\n') }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-gray-700 whitespace-pre-line">{{ policy.controls or 'No controls added.' }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if remaining_images or file_attachments %}
+            <div class="bg-white rounded-2xl shadow p-6">
+                <h2 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-paperclip text-blue-500"></i> Additional Attachments</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    {% for file in remaining_images %}
+                    <a href="{{ url_for('audit.download_attachment', attachment_id=file.id) }}" class="block border border-gray-100 hover:border-blue-200 rounded-xl overflow-hidden bg-gray-50">
+                        <img src="{{ url_for('audit.download_attachment', attachment_id=file.id, inline=1) }}" alt="{{ file.original_filename }}" class="w-full h-48 object-contain bg-white">
+                        <span class="block text-xs text-gray-600 px-3 py-2 truncate"><i class="fas fa-image mr-1"></i>{{ file.original_filename }}</span>
+                    </a>
+                    {% endfor %}
+                    {% for file in file_attachments %}
+                    <a href="{{ url_for('audit.download_attachment', attachment_id=file.id) }}" class="border border-gray-100 hover:border-blue-200 rounded-xl p-4 flex items-center gap-3">
+                        <i class="fas fa-file-lines text-blue-500"></i>
+                        <span class="min-w-0">
+                            <span class="block text-sm font-medium text-gray-800 truncate">{{ file.original_filename }}</span>
+                            <span class="block text-xs text-gray-400">{{ (file.file_size or 0) // 1024 }} KB</span>
+                        </span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if related_audits %}
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-800">Related Audits</h2></div>
+                <div class="divide-y divide-gray-100">
+                    {% for audit_plan in related_audits %}
+                    <a href="{{ url_for('audit.audit_detail', audit_id=audit_plan.id) }}" class="p-4 flex items-center justify-between gap-3 hover:bg-gray-50">
+                        <span>
+                            <span class="block font-medium text-gray-800">{{ audit_plan.title }}</span>
+                            <span class="block text-xs text-gray-400">{{ audit_plan.audit_type.title() }} &bull; {{ audit_plan.status.replace('_',' ').title() }}</span>
+                        </span>
+                        <span class="text-xs text-gray-500">{{ audit_plan.scheduled_date.strftime('%d %b %Y') if audit_plan.scheduled_date else '-' }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <aside class="space-y-4">
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800">Policy Details</h2>
+                <dl class="mt-4 space-y-3 text-sm">
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Risk</dt><dd class="font-semibold text-gray-800">{{ policy.risk_level.title() }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Owner</dt><dd class="text-gray-800 text-right">{{ policy.owner.name if policy.owner else 'Unassigned' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Effective</dt><dd class="text-gray-800">{{ policy.effective_date.strftime('%d %b %Y') if policy.effective_date else '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Review</dt><dd class="{% if policy.is_review_due %}text-red-600 font-semibold{% else %}text-gray-800{% endif %}">{{ policy.review_date.strftime('%d %b %Y') if policy.review_date else '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Latest Acknowledged</dt><dd class="text-gray-800">{{ current_acknowledgement_count }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Updated</dt><dd class="text-gray-800">{{ policy.updated_at.strftime('%d %b %Y %H:%M') if policy.updated_at else '-' }}</dd></div>
+                </dl>
+            </div>
+
+            {% if policy.requires_acknowledgement %}
+            <div class="{% if not acknowledgement_current %}bg-amber-50 border-2 border-amber-300 shadow-lg{% else %}bg-white shadow{% endif %} rounded-2xl p-5">
+                <h2 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-signature text-purple-600"></i> Acknowledgement</h2>
+                {% if acknowledgement_current %}
+                <p class="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg p-3 mt-3">
+                    Acknowledged on {{ acknowledgement.acknowledged_at.strftime('%d %b %Y %H:%M') }} for version {{ acknowledgement.policy_version or policy.version }}.
+                </p>
+                {% else %}
+                {% if acknowledgement %}
+                <p class="text-sm text-amber-800 bg-white border border-amber-200 rounded-lg p-3 mt-3">
+                    Acknowledgement required again. This policy changed after your last acknowledgement
+                    {% if acknowledgement.policy_version != policy.version %}or the version changed from {{ acknowledgement.policy_version or 'not set' }} to {{ policy.version }}{% endif %}.
+                </p>
+                {% else %}
+                <p class="text-sm text-amber-800 bg-white border border-amber-200 rounded-lg p-3 mt-3">Please confirm you have read and understood this company policy.</p>
+                {% endif %}
+                <form method="POST" action="{{ url_for('audit.acknowledge_policy', policy_id=policy.id) }}" class="mt-4">
+                    <button type="submit" class="ticket-action-btn bg-amber-600 hover:bg-amber-700 text-white w-full justify-center shadow"><i class="fas fa-check"></i> Acknowledge Latest Policy</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if findings %}
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800">Findings</h2>
+                <div class="mt-3 space-y-2">
+                    {% for finding in findings %}
+                    <a href="{{ url_for('audit.audit_detail', audit_id=finding.audit_id) }}" class="block border border-gray-100 rounded-lg p-3 hover:border-red-200">
+                        <span class="block text-sm font-medium text-gray-800">{{ finding.title }}</span>
+                        <span class="block text-xs text-gray-400 mt-1">{{ finding.severity.title() }} &bull; {{ finding.status.replace('_',' ').title() }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </aside>
+    </div>
+</div>
+{% endblock %}

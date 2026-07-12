@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% block title %}{{ employee.name }} - Profile{% endblock %}
+{% block content %}
+{% macro field(label, value) -%}
+<div>
+    <dt class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ label }}</dt>
+    <dd class="mt-1 text-sm font-medium text-gray-900 break-words">{{ value if value not in [None, ''] else 'Not updated' }}</dd>
+</div>
+{%- endmacro %}
+
+<div class="space-y-6">
+    <div class="bg-white rounded-2xl shadow overflow-hidden">
+        <div class="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-800 px-6 py-6 text-white">
+            <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-2xl font-bold">{{ employee.name[0].upper() }}</div>
+                    <div>
+                        <p class="text-xs uppercase tracking-wide text-blue-100">{{ employee.employee_id or 'Employee Profile' }}</p>
+                        <h1 class="text-2xl font-bold mt-1">{{ employee.name }}</h1>
+                        <p class="text-sm text-blue-100 mt-1">{{ employee.designation or 'No designation' }} | {{ employee.department.name if employee.department else 'No department' }}</p>
+                    </div>
+                </div>
+                <a href="{{ url_for('hrms.employees') }}" class="ticket-action-btn bg-white/10 hover:bg-white/20 text-white border border-white/20"><i class="fas fa-arrow-left"></i> Profile</a>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 divide-x divide-y xl:divide-y-0 divide-gray-100 text-sm">
+            <div class="p-4"><p class="text-gray-400">Role</p><p class="font-semibold text-gray-900">{{ employee.role_label }}</p></div>
+            <div class="p-4"><p class="text-gray-400">Manager</p><p class="font-semibold text-gray-900">{{ employee.reporting_manager.name if employee.reporting_manager else 'None' }}</p></div>
+            <div class="p-4"><p class="text-gray-400">Joining</p><p class="font-semibold text-gray-900">{{ employee.date_of_joining.strftime('%d %b %Y') if employee.date_of_joining else 'None' }}</p></div>
+            <div class="p-4"><p class="text-gray-400">Location</p><p class="font-semibold text-gray-900">{{ employee.work_location or 'None' }}</p></div>
+            <div class="p-4"><p class="text-gray-400">Monthly CTC</p><p class="font-semibold text-gray-900">INR {{ "%.0f"|format(payroll_profile.monthly_ctc or 0) }}</p></div>
+            <div class="p-4"><p class="text-gray-400">Status</p><p class="font-semibold {% if employee.is_active %}text-green-700{% else %}text-red-700{% endif %}">{{ 'Active' if employee.is_active else 'Inactive' }}</p></div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow p-2 overflow-x-auto">
+        <nav class="flex gap-2 min-w-max">
+            {% for tab_id, label, icon in [
+                ('personal', 'Personal Details', 'fa-id-card'),
+                ('official', 'Official Details', 'fa-briefcase'),
+                ('salary', 'Salary Details', 'fa-money-check-dollar'),
+                ('statutory', 'PF, ESI, EPS', 'fa-scale-balanced'),
+                ('documents', 'Documents', 'fa-folder-open'),
+                ('mobile', 'Mobile App', 'fa-mobile-screen'),
+                ('timeline', 'My Timeline', 'fa-timeline')
+            ] %}
+            <button type="button" class="profile-tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-blue-50 hover:text-blue-700 data-[active=true]:bg-blue-600 data-[active=true]:text-white" data-target="{{ tab_id }}" {% if loop.first %}data-active="true"{% endif %}><i class="fas {{ icon }} mr-2"></i>{{ label }}</button>
+            {% endfor %}
+        </nav>
+    </div>
+
+    <section class="profile-tab-panel grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="personal">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-5">
+            <h2 class="font-semibold text-gray-900">Personal Details</h2>
+            <dl class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {{ field('Phone Number', employee.phone) }}
+                {{ field('Personal Email', hr_profile.personal_email) }}
+                {{ field('Date of Birth', hr_profile.date_of_birth.strftime('%d %b %Y') if hr_profile.date_of_birth else None) }}
+                {{ field('Gender', hr_profile.gender) }}
+                {{ field('Marital Status', hr_profile.marital_status) }}
+                {{ field('Blood Group', hr_profile.blood_group) }}
+            </dl>
+            <div class="border-t border-gray-100 pt-5">
+                <h3 class="font-semibold text-gray-800 mb-3">Residential Address</h3>
+                <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {{ field('Address Line 1', hr_profile.address_line1) }}
+                    {{ field('Address Line 2', hr_profile.address_line2) }}
+                    {{ field('City', hr_profile.city) }}
+                    {{ field('State', hr_profile.state) }}
+                    {{ field('PIN Code', hr_profile.postal_code) }}
+                    {{ field('Country', hr_profile.country) }}
+                </dl>
+            </div>
+        </div>
+        <aside class="bg-white rounded-2xl shadow p-5 space-y-4">
+            <h2 class="font-semibold text-gray-900">Other Info</h2>
+            <dl class="space-y-4">
+                {{ field('Emergency Contact Name', employee.emergency_contact_name) }}
+                {{ field('Emergency Contact Phone', employee.emergency_contact_phone) }}
+                {{ field('Miscellaneous Information', hr_profile.other_info) }}
+            </dl>
+        </aside>
+    </section>
+
+    <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="official">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-5">
+            <h2 class="font-semibold text-gray-900">Official Details</h2>
+            <dl class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {{ field('Official Email', employee.email) }}
+                {{ field('Company / Domain', employee.company_domain) }}
+                {{ field('Department', employee.department.name if employee.department else None) }}
+                {{ field('Designation', employee.designation) }}
+                {{ field('Reporting Manager', employee.reporting_manager.name if employee.reporting_manager else None) }}
+                {{ field('Employment Type', employee.employment_type.replace('_',' ').title() if employee.employment_type else None) }}
+                {{ field('Date of Joining', employee.date_of_joining.strftime('%d %b %Y') if employee.date_of_joining else None) }}
+                {{ field('Probation End Date', employee.probation_end_date.strftime('%d %b %Y') if employee.probation_end_date else None) }}
+                {{ field('Branch', employee.branch) }}
+                {{ field('Work Location', employee.work_location) }}
+                {{ field('Cost Center', employee.cost_center) }}
+                {{ field('Grade', employee.grade) }}
+                {{ field('Shift', employee.shift) }}
+            </dl>
+        </div>
+        <aside class="bg-white rounded-2xl shadow p-5 space-y-4">
+            <h2 class="font-semibold text-gray-900">Bank Account Details</h2>
+            <dl class="space-y-4">
+                {{ field('Bank Name', payroll_profile.bank_name) }}
+                {{ field('Bank Account Number', payroll_profile.bank_account) }}
+                {{ field('IFSC Code', payroll_profile.ifsc_code) }}
+            </dl>
+        </aside>
+    </section>
+
+    <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="salary">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-5">
+            <h2 class="font-semibold text-gray-900">Salary Details</h2>
+            <dl class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {{ field('CTC', 'INR ' ~ "%.2f"|format(payroll_profile.annual_ctc or 0)) }}
+                {{ field('FBP', 'INR ' ~ "%.2f"|format(payroll_profile.flexible_benefit_plan or 0)) }}
+                {{ field('Variable Pay', 'INR ' ~ "%.2f"|format(payroll_profile.variable_pay or 0)) }}
+            </dl>
+            <div class="border border-gray-100 rounded-2xl overflow-hidden">
+                <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                    <h3 class="font-semibold text-gray-900">CTC Breakup</h3>
+                    <p class="text-xs text-gray-500">Annual salary components included in the employee CTC.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-white text-gray-500"><tr><th class="px-4 py-3 text-left">Component</th><th class="px-4 py-3 text-right">Amount</th></tr></thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for component in salary_components %}
+                            <tr>
+                                <td class="px-4 py-2 text-gray-700">{{ component.name }}</td>
+                                <td class="px-4 py-2 text-right font-medium text-gray-900">INR {{ "%.2f"|format(component.amount or 0) }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="bg-blue-50">
+                                <td class="px-4 py-3 font-bold text-gray-900">TOTAL CTC</td>
+                                <td class="px-4 py-3 text-right font-bold text-gray-900">INR {{ "%.2f"|format(salary_component_total or 0) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                <h3 class="font-semibold text-emerald-900">List of FBP components included</h3>
+                <div class="flex flex-wrap gap-2 mt-3">
+                    {% for component in salary_components if component.is_fbp %}
+                    <span class="px-3 py-1 rounded-full bg-white border border-emerald-100 text-xs font-semibold text-emerald-700">{{ component.name }}</span>
+                    {% else %}
+                    <span class="text-sm text-emerald-700">No FBP components selected.</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-500"><tr><th class="px-4 py-3 text-left">Effective</th><th class="px-4 py-3 text-left">CTC</th><th class="px-4 py-3 text-left">FBP</th><th class="px-4 py-3 text-left">Variable</th><th class="px-4 py-3 text-left">Reason</th></tr></thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for item in salary_history %}
+                        <tr><td class="px-4 py-3">{{ item.effective_from.strftime('%d %b %Y') }}</td><td class="px-4 py-3">INR {{ "%.0f"|format(item.annual_ctc or 0) }}</td><td class="px-4 py-3">INR {{ "%.0f"|format(item.flexible_benefit_plan or 0) }}</td><td class="px-4 py-3">INR {{ "%.0f"|format(item.variable_pay or 0) }}</td><td class="px-4 py-3">{{ item.change_reason or 'Update' }}</td></tr>
+                        {% else %}
+                        <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">No CTC history yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <aside class="space-y-4">
+            <div class="ticket-stat-card ticket-stat-blue"><div><p class="text-xs text-gray-500 font-medium">Monthly CTC</p><p class="text-2xl font-bold text-gray-900">INR {{ "%.0f"|format(payroll_profile.monthly_ctc or 0) }}</p></div><span><i class="fas fa-calendar"></i></span></div>
+            <div class="ticket-stat-card ticket-stat-amber"><div><p class="text-xs text-gray-500 font-medium">Taxable Income</p><p class="text-2xl font-bold text-gray-900">INR {{ "%.0f"|format(payroll_profile.estimated_taxable_income or 0) }}</p></div><span><i class="fas fa-calculator"></i></span></div>
+        </aside>
+    </section>
+
+    <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="statutory">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-5">
+            <h2 class="font-semibold text-gray-900">PF, ESI, EPS</h2>
+            <dl class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {{ field('PAN', payroll_profile.pan_number) }}
+                {{ field('PF Number', payroll_profile.pf_number) }}
+                {{ field('UAN Number', payroll_profile.uan_number) }}
+                {{ field('ESI Number', payroll_profile.esi_number) }}
+                {{ field('EPS Number', payroll_profile.eps_number) }}
+                {{ field('Tax Regime', payroll_profile.tax_regime.title() if payroll_profile.tax_regime else None) }}
+            </dl>
+        </div>
+        <aside class="bg-white rounded-2xl shadow p-5">
+            <h2 class="font-semibold text-gray-900 mb-4">Compliance Flags</h2>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between"><span>PF</span><strong class="{{ 'text-green-700' if payroll_profile.pf_enabled else 'text-gray-400' }}">{{ 'Enabled' if payroll_profile.pf_enabled else 'Disabled' }}</strong></div>
+                <div class="flex justify-between"><span>ESIC</span><strong class="{{ 'text-green-700' if payroll_profile.esi_enabled else 'text-gray-400' }}">{{ 'Enabled' if payroll_profile.esi_enabled else 'Disabled' }}</strong></div>
+                <div class="flex justify-between"><span>PT</span><strong class="{{ 'text-green-700' if payroll_profile.pt_enabled else 'text-gray-400' }}">{{ 'Enabled' if payroll_profile.pt_enabled else 'Disabled' }}</strong></div>
+            </div>
+        </aside>
+    </section>
+
+    <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="documents">
+        <div class="bg-white rounded-2xl shadow overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-900">Documents & Certificates</h2></div>
+            <div class="divide-y divide-gray-100">
+                {% for doc in documents %}
+                <div class="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div><p class="font-semibold text-gray-900">{{ doc.title }}</p><p class="text-xs text-gray-500">{{ doc.document_type.replace('_',' ').title() }} | {{ doc.created_at.strftime('%d %b %Y') }} | {{ doc.original_filename }}</p>{% if doc.notes %}<p class="text-sm text-gray-500 mt-1">{{ doc.notes }}</p>{% endif %}</div>
+                    <a href="{{ url_for('hrms.employee_document_download', document_id=doc.id) }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-download"></i> Download</a>
+                </div>
+                {% else %}
+                <div class="p-8 text-center text-gray-400">No documents uploaded.</div>
+                {% endfor %}
+            </div>
+        </div>
+        <aside class="bg-white rounded-2xl shadow p-5 text-sm text-gray-600">
+            <h2 class="font-semibold text-gray-900 mb-3">Read-only Access</h2>
+            <p>Your profile is visible here. HR/Admin updates employee details, salary records, and documents.</p>
+        </aside>
+    </section>
+
+    <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="mobile">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-5">
+            <h2 class="font-semibold text-gray-900">Mobile App</h2>
+            <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {{ field('Mobile App Access', 'Enabled' if hr_profile.mobile_app_enabled else 'Disabled') }}
+                {{ field('Registered Device ID', hr_profile.mobile_device_id) }}
+                {{ field('Last Login', hr_profile.mobile_last_login.strftime('%d %b %Y %H:%M') if hr_profile.mobile_last_login else None) }}
+            </dl>
+        </div>
+        <aside class="bg-white rounded-2xl shadow p-5 text-sm text-gray-600">
+            <h2 class="font-semibold text-gray-900 mb-3">ESS Access</h2>
+            <p>Use ESS for leave, attendance, reimbursements, investment declarations, and loans.</p>
+        </aside>
+    </section>
+
+    <section class="profile-tab-panel hidden grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6" data-panel="timeline">
+        <div class="bg-white rounded-2xl shadow p-5">
+            <h2 class="font-semibold text-gray-900 mb-4">My Timeline</h2>
+            <div class="space-y-4">
+                {% for title, item_date, detail in timeline %}
+                <div class="flex gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center"><i class="fas fa-circle text-xs"></i></div>
+                    <div><p class="font-semibold text-gray-900">{{ title }}</p><p class="text-sm text-gray-500">{{ item_date.strftime('%d %b %Y') }} | {{ detail }}</p></div>
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-400">No timeline events yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+        <aside class="space-y-4">
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-900">Recent Leave</h2></div>
+                <div class="divide-y divide-gray-100">{% for leave in leaves %}<div class="p-4 flex justify-between gap-3"><span class="text-sm text-gray-700">{{ leave.leave_type.title() }} | {{ leave.date_range_label }}</span><span class="text-xs font-semibold">{{ leave.status.title() }}</span></div>{% else %}<div class="p-6 text-gray-400 text-sm">No leave records.</div>{% endfor %}</div>
+            </div>
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-900">Recent Attendance</h2></div>
+                <div class="divide-y divide-gray-100">{% for item in attendance %}<div class="p-4 flex justify-between gap-3"><span class="text-sm text-gray-700">{{ item.attendance_date.strftime('%d %b %Y') }} | {{ item.status.title() }}</span><span class="text-xs text-gray-500">{{ item.check_in.strftime('%H:%M') if item.check_in else '--' }} - {{ item.check_out.strftime('%H:%M') if item.check_out else '--' }}</span></div>{% else %}<div class="p-6 text-gray-400 text-sm">No attendance records.</div>{% endfor %}</div>
+            </div>
+        </aside>
+    </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const buttons = Array.from(document.querySelectorAll('.profile-tab-btn'));
+    const panels = Array.from(document.querySelectorAll('.profile-tab-panel'));
+    function activate(target) {
+        buttons.forEach((button) => button.dataset.active = String(button.dataset.target === target));
+        panels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.panel !== target));
+    }
+    buttons.forEach((button) => button.addEventListener('click', () => activate(button.dataset.target)));
+});
+</script>
+{% endblock %}

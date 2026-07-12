@@ -1,0 +1,193 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}IT HelpDesk{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+{% if current_user.is_authenticated %}
+<div class="flex h-screen overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col fixed h-full z-10 shadow-xl">
+        <div class="px-6 py-5 border-b border-slate-700">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h1 class="text-lg font-bold flex items-center gap-2">
+                        <i class="fas fa-headset text-blue-400"></i>
+                        <span>IT HelpDesk</span>
+                    </h1>
+                    {% set sidebar_quotes = [
+                        'Solve calmly. Support clearly.',
+                        'Every ticket is a person waiting.',
+                        'Small fixes create big trust.',
+                        'Clarity first, speed second.',
+                        'Good support feels effortless.',
+                        'Document today, save tomorrow.',
+                        'Progress starts with one reply.',
+                        'Make systems kinder to people.',
+                        'Listen well. Fix better.',
+                        'Reliable work, quiet confidence.'
+                    ] %}
+                    <p class="text-xs text-slate-400 mt-0.5">{{ sidebar_quotes[(range(0, 999999) | random) % sidebar_quotes|length] }}</p>
+                </div>
+                <a href="{{ url_for('settings.profile') }}" class="w-9 h-9 rounded-xl bg-slate-800 border border-slate-600 hover:bg-blue-600 hover:border-blue-500 flex items-center justify-center text-sm font-bold transition-colors" title="Profile Settings">
+                    {{ current_user.name[0].upper() }}
+                </a>
+            </div>
+        </div>
+
+        <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto text-sm">
+            <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt w-4"></i> Dashboard
+            </a>
+
+            <div class="pt-3 pb-1 text-xs text-slate-500 uppercase tracking-wider px-2">Helpdesk</div>
+            <a href="{{ url_for('tickets.list') }}" class="nav-link {% if request.blueprint == 'tickets' %}active{% endif %}">
+                <i class="fas fa-ticket-alt w-4"></i> Tickets
+            </a>
+            <a href="{{ url_for('tickets.create') }}" class="nav-link">
+                <i class="fas fa-plus-circle w-4"></i> New Ticket
+            </a>
+            <a href="{{ url_for('admin.reports') }}" class="nav-link {% if request.endpoint in ['admin.reports', 'admin.export_report'] %}active{% endif %}">
+                <i class="fas fa-chart-bar w-4"></i> Reports
+            </a>
+            {% if current_user.can_manage_helpdesk %}
+            <a href="{{ url_for('admin.assignment_rules') }}" class="nav-link {% if request.endpoint == 'admin.assignment_rules' %}active{% endif %}">
+                <i class="fas fa-route w-4"></i> Assignment Rules
+            </a>
+            <a href="{{ url_for('admin.reply_templates') }}" class="nav-link {% if request.endpoint == 'admin.reply_templates' %}active{% endif %}">
+                <i class="fas fa-message w-4"></i> Reply Templates
+            </a>
+            {% endif %}
+            <a href="{{ url_for('knowledge.list') }}" class="nav-link {% if request.blueprint == 'knowledge' %}active{% endif %}">
+                <i class="fas fa-book-open w-4"></i> Knowledge Base
+            </a>
+
+            {% if current_user.can_manage_compliance %}
+            <div class="pt-3 pb-1 text-xs text-slate-500 uppercase tracking-wider px-2">Compliance</div>
+            <a href="{{ url_for('audit.index') }}" class="nav-link {% if request.blueprint == 'audit' %}active{% endif %}">
+                <i class="fas fa-scale-balanced w-4"></i> Audit & Policies
+            </a>
+            {% endif %}
+
+            {% if current_user.can_manage_inventory or current_user.can_manage_licenses %}
+            <div class="pt-3 pb-1 text-xs text-slate-500 uppercase tracking-wider px-2">Inventory</div>
+            {% if current_user.can_manage_inventory %}
+            <a href="{{ url_for('assets.list') }}" class="nav-link {% if request.blueprint == 'assets' %}active{% endif %}">
+                <i class="fas fa-laptop w-4"></i> Assets
+            </a>
+            <a href="{{ url_for('assets.create') }}" class="nav-link">
+                <i class="fas fa-plus w-4"></i> Add Asset
+            </a>
+            <a href="{{ url_for('software.list') }}" class="nav-link {% if request.blueprint == 'software' and request.endpoint == 'software.list' %}active{% endif %}">
+                <i class="fas fa-compact-disc w-4"></i> Software
+            </a>
+            <a href="{{ url_for('software.by_user') }}" class="nav-link {% if request.endpoint == 'software.by_user' %}active{% endif %}">
+                <i class="fas fa-user-check w-4"></i> Software by User
+            </a>
+            <a href="{{ url_for('software.create') }}" class="nav-link">
+                <i class="fas fa-plus w-4"></i> Add Software
+            </a>
+            {% endif %}
+            {% if current_user.can_manage_licenses %}
+            <div class="pt-2 pb-1 text-xs text-slate-600 uppercase tracking-wider px-2">Licenses</div>
+            <a href="{{ url_for('software.license_page', slug='windows') }}" class="nav-link {% if request.endpoint == 'software.license_page' and request.view_args.slug == 'windows' %}active{% endif %}">
+                <i class="fab fa-windows w-4"></i> Windows
+            </a>
+            <a href="{{ url_for('software.license_page', slug='mssql') }}" class="nav-link {% if request.endpoint == 'software.license_page' and request.view_args.slug == 'mssql' %}active{% endif %}">
+                <i class="fas fa-database w-4"></i> MS SQL
+            </a>
+            <a href="{{ url_for('software.license_page', slug='server') }}" class="nav-link {% if request.endpoint == 'software.license_page' and request.view_args.slug == 'server' %}active{% endif %}">
+                <i class="fas fa-server w-4"></i> Server
+            </a>
+            <a href="{{ url_for('software.license_page', slug='visualstudio') }}" class="nav-link {% if request.endpoint == 'software.license_page' and request.view_args.slug == 'visualstudio' %}active{% endif %}">
+                <i class="fas fa-code w-4"></i> Visual Studio
+            </a>
+            <a href="{{ url_for('software.license_page', slug='msoffice') }}" class="nav-link {% if request.endpoint == 'software.license_page' and request.view_args.slug == 'msoffice' %}active{% endif %}">
+                <i class="fas fa-file-word w-4"></i> MS Office
+            </a>
+            {% endif %}
+            {% endif %}
+
+            {% if current_user.can_manage_system or current_user.can_manage_user_accounts %}
+            <div class="pt-3 pb-1 text-xs text-slate-500 uppercase tracking-wider px-2">Administration</div>
+            {% if current_user.can_manage_user_accounts %}
+            <a href="{{ url_for('admin.users') }}" class="nav-link {% if request.endpoint in ['admin.users', 'admin.create_user', 'admin.edit_user'] %}active{% endif %}">
+                <i class="fas fa-users w-4"></i> Users
+            </a>
+            <a href="{{ url_for('admin.create_user') }}" class="nav-link">
+                <i class="fas fa-user-plus w-4"></i> Create User
+            </a>
+            {% endif %}
+            {% if current_user.can_manage_system %}
+            <a href="{{ url_for('departments.list') }}" class="nav-link {% if request.blueprint == 'departments' %}active{% endif %}">
+                <i class="fas fa-building w-4"></i> Departments
+            </a>
+            <a href="{{ url_for('admin.email_config') }}" class="nav-link {% if request.endpoint == 'admin.email_config' %}active{% endif %}">
+                <i class="fas fa-envelope-circle-check w-4"></i> Email Config
+            </a>
+            {% endif %}
+            {% else %}
+            <div class="pt-3 pb-1 text-xs text-slate-500 uppercase tracking-wider px-2">Basic Settings</div>
+            <a href="{{ url_for('settings.index') }}" class="nav-link {% if request.blueprint == 'settings' %}active{% endif %}">
+                <i class="fas fa-sliders w-4"></i> Basic Settings
+            </a>
+            {% endif %}
+        </nav>
+
+        <div class="px-3 py-4 border-t border-slate-700">
+            <a href="{{ url_for('settings.profile') }}" class="flex items-center gap-3 mb-3 px-2 py-2 rounded-xl hover:bg-slate-700/70 transition-colors {% if request.endpoint == 'settings.profile' %}bg-slate-700/70{% endif %}" title="Open profile settings">
+                <div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">
+                    {{ current_user.name[0].upper() }}
+                </div>
+                <div class="min-w-0">
+                    <p class="text-sm font-medium truncate">{{ current_user.name }}</p>
+                    <p class="text-xs text-slate-400">{{ current_user.access_level_label }}
+                        {% if current_user.department %} · {{ current_user.department.name }}{% endif %}
+                    </p>
+                </div>
+                <i class="fas fa-user-gear text-slate-400 ml-auto text-xs"></i>
+            </a>
+            <a href="{{ url_for('settings.security') }}" class="nav-link {% if request.endpoint == 'settings.security' %}active{% endif %}">
+                <i class="fas fa-shield-halved w-4"></i> Security
+            </a>
+            <a href="{{ url_for('auth.logout') }}" class="nav-link text-red-400 hover:text-red-300 hover:bg-red-900/30">
+                <i class="fas fa-sign-out-alt w-4"></i> Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="ml-64 flex-1 overflow-y-auto">
+        <div class="p-8">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="mb-5 space-y-2">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium">
+                    <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'danger' %}fa-times-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+</div>
+
+{% else %}
+<main>
+    {% block auth_content %}{% endblock %}
+</main>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

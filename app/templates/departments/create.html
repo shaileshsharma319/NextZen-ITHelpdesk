@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Create Department - IT HelpDesk{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Create Department</h2>
+</div>
+<div class="bg-white rounded-xl shadow p-6 max-w-lg">
+    <form method="POST" class="space-y-5">
+        <div>
+            <label class="form-label">Department Name <span class="text-red-500">*</span></label>
+            <input type="text" name="name" required class="form-input" placeholder="e.g. IT, Finance, HR">
+        </div>
+        <div>
+            <label class="form-label">Description</label>
+            <input type="text" name="description" class="form-input" placeholder="Brief description">
+        </div>
+        <div>
+            <label class="form-label">Location / Branch</label>
+            <input type="text" name="location" class="form-input" placeholder="e.g. Head Office, Floor 3">
+        </div>
+        <div class="flex gap-3">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm">
+                Create
+            </button>
+            <a href="{{ url_for('departments.list') }}" class="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg text-sm hover:bg-gray-50">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Leave Management{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">HRMS</span>
+        <h1 class="text-2xl font-bold text-gray-900 mt-3">Leave Management</h1>
+        <p class="text-sm text-gray-500 mt-1">Submit leave requests and approve team leave.</p>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-6">
+        <form method="POST" class="bg-white rounded-2xl shadow p-5 space-y-4">
+            <h2 class="font-semibold text-gray-800">New Leave Request</h2>
+            {% if current_user.can_manage_hrms %}
+            <div>
+                <label class="form-label">Employee</label>
+                <select name="user_id" class="form-input" required>
+                    {% for employee in employees %}<option value="{{ employee.id }}" {% if employee.id == current_user.id %}selected{% endif %}>{{ employee.name }}</option>{% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div>
+                <label class="form-label">Leave Type</label>
+                <select name="leave_type" class="form-input">
+                    {% for value, label in [('casual','Casual Leave'),('sick','Sick Leave'),('earned','Earned Leave'),('unpaid','Unpaid Leave'),('work_from_home','Work From Home')] %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="form-label">Start Date</label><input type="date" name="start_date" required class="form-input"></div>
+                <div><label class="form-label">End Date</label><input type="date" name="end_date" required class="form-input"></div>
+            </div>
+            <div>
+                <label class="form-label">Reason</label>
+                <textarea name="reason" rows="4" class="form-input" placeholder="Reason for leave"></textarea>
+            </div>
+            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg"><i class="fas fa-paper-plane mr-1"></i> Submit Request</button>
+        </form>
+
+        <div class="bg-white rounded-2xl shadow overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100">
+                <h2 class="font-semibold text-gray-800">Leave Requests</h2>
+                <p class="text-xs text-gray-400 mt-1">{{ leave_requests|length }} request{{ '' if leave_requests|length == 1 else 's' }}</p>
+            </div>
+            <div class="divide-y divide-gray-100">
+                {% for leave in leave_requests %}
+                <div class="p-5">
+                    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                        <div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3 class="font-semibold text-gray-900">{{ leave.employee.name }}</h3>
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold {% if leave.status == 'approved' %}bg-green-100 text-green-700{% elif leave.status == 'rejected' %}bg-red-100 text-red-700{% else %}bg-amber-100 text-amber-700{% endif %}">{{ leave.status.title() }}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-1">{{ leave.leave_type.replace('_',' ').title() }} • {{ leave.date_range_label }} • {{ leave.days }} day{{ '' if leave.days == 1 else 's' }}</p>
+                            {% if leave.reason %}<p class="text-sm text-gray-500 mt-2">{{ leave.reason }}</p>{% endif %}
+                            {% if leave.decision_note %}<p class="text-xs text-gray-400 mt-2">Decision note: {{ leave.decision_note }}</p>{% endif %}
+                        </div>
+                        {% if current_user.can_manage_hrms and leave.status == 'pending' %}
+                        <form method="POST" action="{{ url_for('hrms.leave_decision', leave_id=leave.id) }}" class="flex flex-col sm:flex-row gap-2">
+                            <input type="text" name="decision_note" class="form-input text-sm" placeholder="Optional note">
+                            <button name="action" value="approved" class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-2 rounded-lg">Approve</button>
+                            <button name="action" value="rejected" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded-lg">Reject</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="p-10 text-center text-gray-400">No leave requests.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

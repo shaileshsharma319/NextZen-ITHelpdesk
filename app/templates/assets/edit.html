@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% block title %}Edit Asset - IT HelpDesk{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Edit Asset: {{ asset.name }}</h2>
+</div>
+
+<form method="POST" class="space-y-5">
+
+    <!-- Basic Info -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2"><i class="fas fa-info-circle text-blue-500"></i> Basic Information</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+                <label class="form-label">Asset Name <span class="text-red-500">*</span></label>
+                <input type="text" name="name" value="{{ asset.name }}" required class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Asset Tag <span class="text-red-500">*</span></label>
+                <input type="text" name="asset_tag" value="{{ asset.asset_tag }}" required class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Site Name</label>
+                <input type="text" name="site_name" value="{{ asset.site_name or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Asset Type <span class="text-red-500">*</span></label>
+                <select name="asset_type" required class="form-input">
+                    {% for t in ['computer','monitor','printer','phone','server','network','other'] %}
+                    <option value="{{ t }}" {% if asset.asset_type == t %}selected{% endif %}>{{ t.title() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Status</label>
+                <select name="status" class="form-input">
+                    {% for s in ['available','in_use','under_repair','retired'] %}
+                    <option value="{{ s }}" {% if asset.status == s %}selected{% endif %}>{{ s.replace('_',' ').title() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Department</label>
+                <select name="department_id" class="form-input">
+                    <option value="">None</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.id }}" {% if asset.department_id == dept.id %}selected{% endif %}>{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Network & User -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2"><i class="fas fa-network-wired text-green-500"></i> Network & User Details</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+                <label class="form-label">Hostname</label>
+                <input type="text" name="hostname" value="{{ asset.hostname or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">IP Address</label>
+                <input type="text" name="ip_address" value="{{ asset.ip_address or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Assigned User</label>
+                <select name="assigned_user_id" class="form-input">
+                    <option value="">Unassigned</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if asset.assigned_user_id == user.id %}selected{% endif %}>{{ user.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Team Leader</label>
+                <input type="text" name="team_leader" value="{{ asset.team_leader or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Designation</label>
+                <input type="text" name="designation" value="{{ asset.designation or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Previous Users</label>
+                <input type="text" name="previous_users" value="{{ asset.previous_users or '' }}" class="form-input">
+            </div>
+        </div>
+    </div>
+
+    <!-- Hardware -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2"><i class="fas fa-microchip text-purple-500"></i> Hardware Details</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+                <label class="form-label">CPU Model</label>
+                <input type="text" name="cpu_model" value="{{ asset.cpu_model or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">CPU Serial No.</label>
+                <input type="text" name="cpu_serial" value="{{ asset.cpu_serial or '' }}" class="form-input font-mono">
+            </div>
+            <div>
+                <label class="form-label">Motherboard</label>
+                <input type="text" name="motherboard" value="{{ asset.motherboard or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">SSD Model</label>
+                <input type="text" name="ssd_model" value="{{ asset.ssd_model or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Internal HDD Capacity</label>
+                <input type="text" name="internal_hdd" value="{{ asset.internal_hdd or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">RAM Details</label>
+                <input type="text" name="ram_details" value="{{ asset.ram_details or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">RAM Type</label>
+                <input type="text" name="ram_type" value="{{ asset.ram_type or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Operating System</label>
+                <input type="text" name="operating_system" value="{{ asset.operating_system or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Full Serial No. of Asset</label>
+                <input type="text" name="full_serial_number" value="{{ asset.full_serial_number or '' }}" class="form-input font-mono">
+            </div>
+        </div>
+    </div>
+
+    <!-- Peripherals -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2"><i class="fas fa-keyboard text-orange-500"></i> Peripherals</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+                <label class="form-label">Monitor Model & Serial No.</label>
+                <input type="text" name="monitor_model" value="{{ asset.monitor_model or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Mouse Model & Serial No.</label>
+                <input type="text" name="mouse_model" value="{{ asset.mouse_model or '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Keyboard Model & Serial No.</label>
+                <input type="text" name="keyboard_model" value="{{ asset.keyboard_model or '' }}" class="form-input">
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchase & Remarks -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2"><i class="fas fa-clipboard text-red-500"></i> Purchase & Remarks</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+                <label class="form-label">Purchase Date</label>
+                <input type="date" name="purchase_date" value="{{ asset.purchase_date.strftime('%Y-%m-%d') if asset.purchase_date else '' }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">Warranty Expiry</label>
+                <input type="date" name="warranty_expiry" value="{{ asset.warranty_expiry.strftime('%Y-%m-%d') if asset.warranty_expiry else '' }}" class="form-input">
+            </div>
+        </div>
+        <div class="mt-4">
+            <label class="form-label">Remarks (Missing Assets / Physical Damage / Other Issues)</label>
+            <textarea name="remarks" rows="3" class="form-input">{{ asset.remarks or '' }}</textarea>
+        </div>
+    </div>
+
+    <div class="flex gap-3">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm">
+            <i class="fas fa-save mr-1"></i> Save Changes
+        </button>
+        <a href="{{ url_for('assets.detail', asset_id=asset.id) }}" class="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg text-sm hover:bg-gray-50">Cancel</a>
+    </div>
+</form>
+{% endblock %}

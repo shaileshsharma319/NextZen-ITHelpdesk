@@ -1,0 +1,464 @@
+{% extends 'base.html' %}
+{% block title %}Create User - IT HelpDesk{% endblock %}
+{% block content %}
+
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 flex-wrap mb-2">
+                <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">HelpDesk User</span>
+                <span class="text-xs text-gray-400">Login, department, domain, and module access</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900">Create User</h1>
+            <p class="text-sm text-gray-500 mt-1">Create a clean HelpDesk account with department-wise access.</p>
+        </div>
+        <a href="{{ url_for('admin.users') }}" class="inline-flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
+            <i class="fas fa-arrow-left"></i> Back to Users
+        </a>
+    </div>
+
+    <form method="POST" id="createUserForm" class="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_340px] gap-6">
+        <div class="space-y-5">
+            <section class="bg-white rounded-2xl shadow p-6 space-y-5">
+                <div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                    <div>
+                        <h2 class="font-semibold text-gray-900">User Identity</h2>
+                        <p class="text-xs text-gray-400 mt-1">Basic contact details used in tickets, assets, approvals, and notifications.</p>
+                    </div>
+                    <i class="fas fa-user text-blue-500 bg-blue-50 p-3 rounded-xl"></i>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                    <div>
+                        <label class="form-label">First Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="first_name" id="first_name" required value="{{ form.get('first_name','') }}" class="form-input" placeholder="First name">
+                    </div>
+                    <div>
+                        <label class="form-label">Last Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="last_name" id="last_name" required value="{{ form.get('last_name','') }}" class="form-input" placeholder="Last name">
+                    </div>
+                    <div>
+                        <label class="form-label">User Code</label>
+                        <div class="relative">
+                            <input type="text" name="user_code" id="user_code" value="{{ form.get('user_code', suggested_user_code) }}" class="form-input pr-20" placeholder="USR0001">
+                            <button type="button" onclick="autoGenUserCode()" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded">Auto</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label class="form-label">Email <span class="text-red-500">*</span></label>
+                        <input type="email" name="email" id="email" required value="{{ form.get('email','') }}" class="form-input" placeholder="name@company.com">
+                    </div>
+                    <div>
+                        <label class="form-label">Mobile Number <span class="text-red-500">*</span></label>
+                        <input type="text" name="phone" required value="{{ form.get('phone','') }}" class="form-input" placeholder="+91 98765 43210">
+                    </div>
+                    <div>
+                        <label class="form-label">Job Title</label>
+                        <input type="text" name="designation" value="{{ form.get('designation','') }}" class="form-input" placeholder="Support Engineer">
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-white rounded-2xl shadow p-6 space-y-5">
+                <div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                    <div>
+                        <h2 class="font-semibold text-gray-900">Department & Login Validation</h2>
+                        <p class="text-xs text-gray-400 mt-1">The selected department and company/domain must match during login.</p>
+                    </div>
+                    <i class="fas fa-building-user text-emerald-600 bg-emerald-50 p-3 rounded-xl"></i>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label class="form-label">Department <span class="text-red-500">*</span></label>
+                        <select name="department_id" id="department_id" required class="form-input">
+                            <option value="">Select Department</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}" {% if form.get('department_id')|string == dept.id|string %}selected{% endif %}>{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Company / Domain <span class="text-red-500">*</span></label>
+                        <select name="company_domain" id="company_domain" required class="form-input">
+                            <option value="">Select Company</option>
+                            {% for domain in company_domains %}
+                            <option value="{{ domain }}" {% if form.get('company_domain') == domain %}selected{% endif %}>{{ domain }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Location <span class="text-red-500">*</span></label>
+                        <select name="work_location" id="work_location" required class="form-input">
+                            <option value="">Select City / Branch</option>
+                            {% for state_name, state_code, location_name, location_code in location_options %}
+                            <option value="{{ location_name }}" data-state="{{ state_name }}" data-state-code="{{ state_code }}" data-code="{{ location_code }}" {% if form.get('work_location') == location_name %}selected{% endif %}>{{ location_name }} - {{ state_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">State Code</label>
+                        <input type="text" id="state_code" class="form-input bg-gray-50 font-mono uppercase" value="" readonly placeholder="Auto">
+                    </div>
+                    <div>
+                        <label class="form-label">Ticket Location Code</label>
+                        <input type="text" id="location_code" class="form-input bg-gray-50 font-mono uppercase" value="" readonly placeholder="Auto">
+                    </div>
+                </div>
+
+                <div id="departmentAccessBox" class="border border-emerald-100 bg-emerald-50 rounded-2xl p-4 text-sm">
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-circle-info text-emerald-600 mt-0.5"></i>
+                        <div>
+                            <p class="font-semibold text-emerald-900" id="departmentAccessTitle">Select a department</p>
+                            <p class="text-emerald-700 mt-1" id="departmentAccessText">Department controls which admin features are available.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-white rounded-2xl shadow p-6 space-y-5">
+                <div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                    <div>
+                        <h2 class="font-semibold text-gray-900">Account & Access</h2>
+                        <p class="text-xs text-gray-400 mt-1">Choose a simple role, then add extra module permissions if needed.</p>
+                    </div>
+                    <i class="fas fa-shield-halved text-violet-600 bg-violet-50 p-3 rounded-xl"></i>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Username <span class="text-red-500">*</span></label>
+                        <input type="text" name="username" id="username" required value="{{ form.get('username','') }}" class="form-input" placeholder="first.last" autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="form-label">Role <span class="text-red-500">*</span></label>
+                        <select name="role" id="role" required class="form-input">
+                            {% for value, label in role_options %}
+                            <option value="{{ value }}" {% if form.get('role','department_basic') == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div id="roleAccessBox" class="border border-blue-100 bg-blue-50 rounded-2xl p-4 text-sm">
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-key text-blue-600 mt-0.5"></i>
+                        <div>
+                            <p class="font-semibold text-blue-900" id="roleAccessTitle">Basic User</p>
+                            <p class="text-blue-700 mt-1" id="roleAccessText">Can create tickets and view only own or assigned tickets.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border border-gray-100 rounded-2xl p-4">
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Extra Module Access</h3>
+                            <p class="text-xs text-gray-400 mt-1">Use this for partial access, for example IT Basic + Licenses only.</p>
+                        </div>
+                        <i class="fas fa-sliders text-gray-400"></i>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <label class="access-card">
+                            <input type="checkbox" name="allow_helpdesk_admin" {% if form.get('allow_helpdesk_admin') %}checked{% endif %} class="accent-blue-600 mr-2"> Helpdesk Agent
+                            <span>Reply, assign, and manage support tickets.</span>
+                        </label>
+                        <label class="access-card">
+                            <input type="checkbox" name="allow_inventory" {% if form.get('allow_inventory') %}checked{% endif %} class="accent-teal-600 mr-2"> Inventory
+                            <span>Manage assets and software inventory.</span>
+                        </label>
+                        <label class="access-card">
+                            <input type="checkbox" name="allow_licenses" {% if form.get('allow_licenses') %}checked{% endif %} class="accent-amber-600 mr-2"> Licenses
+                            <span>Manage software license records.</span>
+                        </label>
+                        <label class="access-card">
+                            <input type="checkbox" name="allow_compliance" {% if form.get('allow_compliance') %}checked{% endif %} class="accent-violet-600 mr-2"> Compliance
+                            <span>Manage audit policies and compliance records.</span>
+                        </label>
+                    </div>
+                </div>
+
+                <label class="border border-blue-100 bg-blue-50 rounded-2xl p-4 flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" name="two_factor_required" {% if form.get('two_factor_required') %}checked{% endif %} class="mt-1 accent-blue-600">
+                    <span>
+                        <span class="block font-semibold text-blue-900">Require MFA setup at next login</span>
+                        <span class="block text-sm text-blue-700 mt-1">User must set up an authenticator app before entering the HelpDesk portal.</span>
+                    </span>
+                </label>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Password <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <input type="password" name="password" id="password" required class="form-input pr-10" placeholder="Minimum 8 characters" autocomplete="new-password">
+                            <button type="button" onclick="togglePwd('password', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><i class="fas fa-eye text-sm"></i></button>
+                        </div>
+                        <div class="mt-2 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                            <div id="pwd-bar" class="h-full w-0 transition-all duration-300"></div>
+                        </div>
+                        <p id="pwd-label" class="text-xs text-gray-400 mt-1"></p>
+                    </div>
+                    <div>
+                        <label class="form-label">Confirm Password <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <input type="password" name="confirm_password" id="confirm_password" required class="form-input pr-10" placeholder="Re-enter password" autocomplete="new-password">
+                            <button type="button" onclick="togglePwd('confirm_password', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><i class="fas fa-eye text-sm"></i></button>
+                        </div>
+                        <p id="confirm-msg" class="text-xs mt-1"></p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label">Account Status <span class="text-red-500">*</span></label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="status-card">
+                            <input type="radio" name="status" value="active" {% if form.get('status','active') != 'inactive' %}checked{% endif %} class="accent-green-600 mr-2"> Active
+                            <span>User can sign in and receive ticket assignments.</span>
+                        </label>
+                        <label class="status-card">
+                            <input type="radio" name="status" value="inactive" {% if form.get('status')=='inactive' %}checked{% endif %} class="accent-gray-600 mr-2"> Inactive
+                            <span>Create account now, enable login later.</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" id="submitBtn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold inline-flex items-center gap-2 shadow-sm">
+                        <i class="fas fa-user-plus"></i> Create User
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <aside class="space-y-4">
+            <div class="bg-slate-900 text-white rounded-2xl shadow p-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center font-bold" id="previewInitial">U</div>
+                    <div class="min-w-0">
+                        <p class="font-semibold truncate" id="previewName">New User</p>
+                        <p class="text-xs text-slate-300 truncate" id="previewEmail">email pending</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mt-5 text-xs">
+                    <div class="bg-white/10 rounded-xl p-3">
+                        <span class="block text-slate-300">User Code</span>
+                        <strong id="previewUserCode">{{ form.get('user_code', suggested_user_code) }}</strong>
+                    </div>
+                    <div class="bg-white/10 rounded-xl p-3">
+                        <span class="block text-slate-300">Role</span>
+                        <strong id="previewRole">Basic User</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h3 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-list-check text-blue-500"></i> Account Checklist</h3>
+                <div class="mt-4 space-y-3 text-sm">
+                    <div class="flex gap-3"><i class="fas fa-check-circle text-green-500 mt-0.5"></i><span class="text-gray-600">Department and domain are mandatory</span></div>
+                    <div class="flex gap-3"><i class="fas fa-check-circle text-green-500 mt-0.5"></i><span class="text-gray-600">Login validates selected department/domain</span></div>
+                    <div class="flex gap-3"><i class="fas fa-check-circle text-green-500 mt-0.5"></i><span class="text-gray-600">Basic users see own or assigned tickets</span></div>
+                    <div class="flex gap-3"><i class="fas fa-check-circle text-green-500 mt-0.5"></i><span class="text-gray-600">Extra access can be added per module</span></div>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 text-sm text-blue-800">
+                <p class="font-semibold mb-1"><i class="fas fa-circle-info mr-1"></i> Role Guide</p>
+                <p class="text-blue-700">Use Basic User for normal staff. Use Admin only when the selected department should manage its HelpDesk-related features.</p>
+            </div>
+        </aside>
+    </form>
+</div>
+
+<style>
+.access-card,
+.status-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    padding: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.access-card:hover,
+.status-card:hover {
+    background: #f8fafc;
+}
+.access-card span,
+.status-card span {
+    display: block;
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-top: 0.25rem;
+    margin-left: 1.55rem;
+}
+.access-card:has(input:checked),
+.status-card:has(input:checked) {
+    border-color: #93c5fd;
+    background: #eff6ff;
+}
+</style>
+
+<script>
+function field(id) {
+    return document.getElementById(id);
+}
+
+function fullName() {
+    return [field('first_name').value.trim(), field('last_name').value.trim()].filter(Boolean).join(' ');
+}
+
+function updatePreview() {
+    const name = fullName();
+    field('previewName').textContent = name || 'New User';
+    field('previewInitial').textContent = (name || 'U')[0].toUpperCase();
+    field('previewEmail').textContent = field('email').value.trim() || 'email pending';
+    field('previewUserCode').textContent = field('user_code').value.trim() || '{{ suggested_user_code }}';
+    field('previewRole').textContent = field('role').value === 'department_admin' ? 'Admin' : 'Basic User';
+}
+
+function suggestUsername() {
+    const username = field('username');
+    if (username.value.trim()) return;
+    const email = field('email').value.trim();
+    if (email.includes('@')) {
+        username.value = email.split('@')[0].toLowerCase();
+        return;
+    }
+    const first = field('first_name').value.trim().toLowerCase();
+    const last = field('last_name').value.trim().toLowerCase();
+    if (first && last) username.value = `${first}.${last}`;
+}
+
+function autoGenUserCode() {
+    field('user_code').value = '{{ suggested_user_code }}';
+    updatePreview();
+}
+
+function updateStateCode() {
+    const selected = field('work_location').selectedOptions[0];
+    field('state_code').value = selected?.dataset.stateCode || '';
+    field('location_code').value = selected?.dataset.code || '';
+}
+
+function togglePwd(id, btn) {
+    const input = field(id);
+    const showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    btn.querySelector('i').className = 'fas fa-eye' + (showing ? '' : '-slash') + ' text-sm';
+}
+
+function departmentKey(name) {
+    const value = name.toLowerCase();
+    if (value.includes('it support') || value.includes('service desk')) return 'it_support';
+    if (value.includes('information technology') || value.includes('it department') || value === 'it') return 'it';
+    if (value.includes('account')) return 'account';
+    if (value.includes('finance') || value.includes('finence')) return 'finance';
+    if (value.includes('sales')) return 'sales';
+    if (value.includes('office admin') || value.includes('administration')) return 'office_admin';
+    if (value.includes('operation')) return 'operations';
+    return 'department';
+}
+
+function selectedDepartmentName() {
+    const select = field('department_id');
+    return select.options[select.selectedIndex]?.textContent.trim() || '';
+}
+
+function updateAccessText() {
+    const deptName = selectedDepartmentName();
+    const dept = departmentKey(deptName);
+    const deptTitle = field('departmentAccessTitle');
+    const deptText = field('departmentAccessText');
+    const roleTitle = field('roleAccessTitle');
+    const roleText = field('roleAccessText');
+    const isAdmin = field('role').value === 'department_admin';
+
+    const deptMap = {
+        it: 'IT Department can manage HelpDesk, inventory, licenses, and compliance when role is Admin.',
+        it_support: 'IT Support can manage tickets and support operations when role is Admin.',
+        account: 'Account Department keeps normal HelpDesk access unless extra module access is selected.',
+        finance: 'Finance Department keeps normal HelpDesk access unless extra module access is selected.',
+        sales: 'Sales Department keeps normal HelpDesk access unless extra module access is selected.',
+        office_admin: 'Office Admin keeps normal HelpDesk access unless extra module access is selected.',
+        operations: 'Operations keeps normal HelpDesk access unless extra module access is selected.',
+        department: 'This department gets normal HelpDesk access unless extra module access is selected.'
+    };
+
+    deptTitle.textContent = deptName || 'Select a department';
+    deptText.textContent = deptName ? (deptMap[dept] || deptMap.department) : 'Department controls which admin features are available.';
+
+    if (isAdmin) {
+        roleTitle.textContent = `${deptName || 'Department'} Admin`;
+        roleText.textContent = dept === 'it'
+            ? 'Can view all tickets and manage IT modules. Extra module checkboxes can fine tune access.'
+            : dept === 'it_support'
+                ? 'Can view all tickets and manage HelpDesk support work.'
+                : 'Can manage user accounts for the selected department and use basic HelpDesk.';
+    } else {
+        roleTitle.textContent = 'Basic User';
+        roleText.textContent = 'Can create tickets and view only own or assigned tickets.';
+    }
+    updatePreview();
+}
+
+function updatePasswordStrength() {
+    const val = field('password').value;
+    const bar = field('pwd-bar');
+    const label = field('pwd-label');
+    let score = 0;
+    if (val.length >= 8) score += 1;
+    if (/[A-Z]/.test(val)) score += 1;
+    if (/[0-9]/.test(val)) score += 1;
+    if (/[^A-Za-z0-9]/.test(val)) score += 1;
+    const colors = ['', 'bg-red-500', 'bg-yellow-400', 'bg-blue-500', 'bg-green-500'];
+    const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+    bar.style.width = `${score * 25}%`;
+    bar.className = `h-full transition-all duration-300 ${colors[score] || ''}`;
+    label.textContent = val ? labels[score] : '';
+    label.className = `text-xs mt-1 ${score < 2 ? 'text-red-500' : score < 4 ? 'text-yellow-600' : 'text-green-600'}`;
+    checkConfirm();
+}
+
+function checkConfirm() {
+    const password = field('password').value;
+    const confirm = field('confirm_password').value;
+    const msg = field('confirm-msg');
+    if (!confirm) {
+        msg.textContent = '';
+        return;
+    }
+    msg.textContent = password === confirm ? 'Passwords match' : 'Passwords do not match';
+    msg.className = `text-xs mt-1 ${password === confirm ? 'text-green-600' : 'text-red-500'}`;
+}
+
+['first_name', 'last_name'].forEach((id) => field(id).addEventListener('input', () => {
+    updatePreview();
+    suggestUsername();
+}));
+['email', 'user_code'].forEach((id) => field(id).addEventListener('input', () => {
+    updatePreview();
+    suggestUsername();
+}));
+field('department_id').addEventListener('change', updateAccessText);
+field('role').addEventListener('change', updateAccessText);
+field('work_location').addEventListener('change', updateStateCode);
+field('password').addEventListener('input', updatePasswordStrength);
+field('confirm_password').addEventListener('input', checkConfirm);
+
+field('createUserForm').addEventListener('submit', function(event) {
+    if (field('password').value !== field('confirm_password').value) {
+        event.preventDefault();
+        checkConfirm();
+        field('confirm_password').focus();
+    }
+});
+
+updatePreview();
+suggestUsername();
+updateAccessText();
+updateStateCode();
+</script>
+{% endblock %}

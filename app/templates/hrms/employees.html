@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Employee Directory{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">HRMS</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">{{ 'Employee Directory' if current_user.can_manage_hrms else 'Profile' }}</h1>
+            <p class="text-sm text-gray-500 mt-1">
+                {{ employees|length }} employee profile{{ '' if employees|length == 1 else 's' }}
+                {% if hidden_duplicate_count %}<span class="text-amber-600">| {{ hidden_duplicate_count }} duplicate record{{ '' if hidden_duplicate_count == 1 else 's' }} hidden</span>{% endif %}
+            </p>
+        </div>
+        {% if current_user.can_manage_hrms or current_user.can_manage_system %}
+        <a href="{{ url_for('admin.create_user') }}" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-user-plus"></i> Create Employee</a>
+        {% endif %}
+    </div>
+
+    {% if current_user.can_manage_hrms %}
+    <div class="ticket-filter-panel">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-[1fr_220px_180px_auto] gap-3 items-end">
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Search</label>
+                <input name="q" value="{{ q }}" class="form-input" placeholder="Name, email, employee ID, designation, location">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Department</label>
+                <select name="department_id" class="filter-select w-full">
+                    <option value="">All Departments</option>
+                    {% for dept in departments %}<option value="{{ dept.id }}" {% if department_id == dept.id %}selected{% endif %}>{{ dept.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Status</label>
+                <select name="status" class="filter-select w-full">
+                    <option value="">All</option>
+                    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <input type="hidden" name="duplicates" value="{{ 'show' if show_duplicates else '' }}">
+            <button class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-filter"></i> Apply</button>
+        </form>
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-4 pt-4 border-t border-gray-100 text-sm">
+            <span class="text-gray-500">Directory shows unique employee profiles by default. Original records are kept safe.</span>
+            {% if show_duplicates %}
+            <a href="{{ url_for('hrms.employees', q=q, department_id=department_id, status=status) }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-eye-slash"></i> Hide Duplicates</a>
+            {% else %}
+            <a href="{{ url_for('hrms.employees', q=q, department_id=department_id, status=status, duplicates='show') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-users-viewfinder"></i> Show All Records</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {% for employee in employees %}
+        <a href="{{ url_for('hrms.employee_detail', user_id=employee.id) }}" class="bg-white rounded-2xl shadow p-5 hover:shadow-md transition-shadow">
+            <div class="flex items-start gap-3">
+                <div class="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">{{ employee.name[0].upper() }}</div>
+                <div class="min-w-0">
+                    <h3 class="font-semibold text-gray-900 truncate">{{ employee.name }}</h3>
+                    <p class="text-xs text-gray-400 font-mono">{{ employee.employee_id or 'No Employee ID' }}</p>
+                    <p class="text-sm text-gray-600 mt-1">{{ employee.designation or 'No designation' }}</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
+                <div><span class="block text-gray-400">Department</span><strong class="text-gray-700">{{ employee.department.name if employee.department else 'None' }}</strong></div>
+                <div><span class="block text-gray-400">Location</span><strong class="text-gray-700">{{ employee.work_location or 'None' }}</strong></div>
+                <div><span class="block text-gray-400">Type</span><strong class="text-gray-700">{{ employee.employment_type.replace('_',' ').title() if employee.employment_type else 'None' }}</strong></div>
+                <div><span class="block text-gray-400">Status</span><strong class="{% if employee.is_active %}text-green-700{% else %}text-red-700{% endif %}">{{ 'Active' if employee.is_active else 'Inactive' }}</strong></div>
+            </div>
+        </a>
+        {% else %}
+        <div class="ticket-empty-state md:col-span-2 xl:col-span-3">No employees found.</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+[Unit]
+Description=IT HelpDesk Flask Web App
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/helpdesk
+EnvironmentFile=/etc/helpdesk/helpdesk.env
+ExecStart=/opt/helpdesk/venv/bin/gunicorn -c /opt/helpdesk/deploy/ubuntu/gunicorn.conf.py wsgi:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

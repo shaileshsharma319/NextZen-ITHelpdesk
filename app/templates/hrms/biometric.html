@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Biometric Sync{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div><span class="text-xs font-semibold uppercase tracking-wide text-amber-600 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-full">Attendance API</span><h1 class="text-2xl font-bold text-gray-900 mt-3">Biometric Sync Logs</h1><p class="text-sm text-gray-500 mt-1">Manual/API-ready biometric punch capture for attendance integration.</p></div>
+    <div class="grid grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)] gap-6">
+        <form method="POST" class="bg-white rounded-2xl shadow p-5 space-y-4">
+            <h2 class="font-semibold text-gray-800">Capture Punch</h2>
+            <div><label class="form-label">Employee Code / Email</label><input name="employee_code" class="form-input" placeholder="EMP001 or user@email.com"></div>
+            <div><label class="form-label">Punch Time</label><input type="datetime-local" name="punch_time" value="{{ now.strftime('%Y-%m-%dT%H:%M') }}" class="form-input"></div>
+            <div><label class="form-label">Punch Type</label><select name="punch_type" class="filter-select w-full"><option value="in">In</option><option value="out">Out</option><option value="break">Break</option></select></div>
+            <div><label class="form-label">Device</label><input name="device_name" class="form-input" placeholder="Main Gate Device"></div>
+            <div><label class="form-label">Source</label><input name="sync_source" class="form-input" value="manual"></div>
+            <button class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white w-full justify-center"><i class="fas fa-fingerprint"></i> Save Punch</button>
+        </form>
+        <div class="bg-white rounded-2xl shadow overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-800">Recent Logs</h2></div>
+            <div class="divide-y divide-gray-100">
+                {% for log in logs %}
+                <div class="p-4 flex items-center justify-between gap-3"><div><p class="font-semibold text-gray-900">{{ log.employee.name if log.employee else log.employee_code }}</p><p class="text-xs text-gray-400">{{ log.device_name or 'Device' }} &bull; {{ log.sync_source }}</p></div><div class="text-right"><p class="text-sm font-semibold text-gray-700">{{ log.punch_time.strftime('%d %b %Y %H:%M') }}</p><p class="text-xs text-gray-400">{{ log.punch_type.title() }}</p></div></div>
+                {% else %}<div class="p-10 text-center text-gray-400">No biometric logs yet.</div>{% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

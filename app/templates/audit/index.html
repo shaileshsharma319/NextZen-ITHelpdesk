@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}Audit & Policy Management{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div>
+            <span class="text-xs font-semibold uppercase tracking-wide text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full">Compliance</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-3">Audit & Policy Management</h1>
+            <p class="text-sm text-gray-500 mt-1">Company policies, audit plans, findings, corrective actions, and acknowledgement tracking.</p>
+        </div>
+        {% if can_manage %}
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ url_for('audit.create_policy') }}" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-file-circle-plus"></i> New Policy</a>
+            <a href="{{ url_for('audit.create_audit') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-clipboard-check"></i> New Audit</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-2 xl:grid-cols-5 gap-3">
+        {% set cards = [
+            ('Policies', total_policies, 'fa-scale-balanced', 'blue'),
+            ('Active', active_policies, 'fa-circle-check', 'emerald'),
+            ('Review Due', review_due, 'fa-calendar-exclamation', 'amber'),
+            ('Open Findings', open_finding_count, 'fa-magnifying-glass-chart', 'red'),
+            ('Overdue Actions', overdue_action_count, 'fa-triangle-exclamation', 'violet'),
+        ] %}
+        {% for label, value, icon, tone in cards %}
+        <div class="ticket-stat-card ticket-stat-{{ tone }}">
+            <div><p class="text-xs text-gray-500 font-medium">{{ label }}</p><p class="text-2xl font-bold text-gray-900 mt-0.5">{{ value }}</p></div>
+            <span><i class="fas {{ icon }}"></i></span>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if pending_acknowledgements %}
+    <div class="bg-purple-50 border border-purple-100 rounded-2xl p-5">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+                <h2 class="font-semibold text-purple-900 flex items-center gap-2"><i class="fas fa-signature"></i> Policies Pending Your Acknowledgement</h2>
+                <p class="text-sm text-purple-700 mt-1">{{ pending_acknowledgements|length }} policy{{ '' if pending_acknowledgements|length == 1 else 'ies' }} need your confirmation.</p>
+            </div>
+            <a href="{{ url_for('audit.policy_detail', policy_id=pending_acknowledgements[0].id) }}" class="ticket-action-btn bg-purple-700 hover:bg-purple-800 text-white"><i class="fas fa-arrow-right"></i> Review First</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="ticket-filter-panel">
+        <form method="GET" class="space-y-4">
+            <div class="grid grid-cols-1 xl:grid-cols-[minmax(280px,1fr)_auto] gap-3 items-end">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Search Policies</label>
+                    <div class="relative">
+                        <i class="fas fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                        <input type="text" name="search" value="{{ search }}" placeholder="Code, title, description, controls" class="form-input pl-9">
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button type="submit" class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white"><i class="fas fa-filter"></i> Apply</button>
+                    <a href="{{ url_for('audit.index') }}" class="ticket-action-btn border border-gray-300 text-gray-700 hover:bg-gray-50"><i class="fas fa-rotate-left"></i> Reset</a>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Category</label>
+                    <select name="category" class="filter-select w-full">
+                        <option value="">All Categories</option>
+                        {% for item in categories %}
+                        <option value="{{ item }}" {% if category == item %}selected{% endif %}>{{ item }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Policy Status</label>
+                    <select name="policy_status" class="filter-select w-full">
+                        <option value="">All Status</option>
+                        {% for item in policy_statuses %}
+                        <option value="{{ item }}" {% if policy_status == item %}selected{% endif %}>{{ item.replace('_',' ').title() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-6">
+        <div class="space-y-6">
+            <div class="bg-white rounded-2xl shadow overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+                    <div>
+                        <h2 class="font-semibold text-gray-800">Policy Register</h2>
+                        <p class="text-xs text-gray-400 mt-1">{{ policies|length }} policy{{ '' if policies|length == 1 else 'ies' }} in this view.</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                            <tr>
+                                <th class="px-4 py-3 text-left">Policy</th>
+                                <th class="px-4 py-3 text-left">Risk</th>
+                                <th class="px-4 py-3 text-left">Status</th>
+                                <th class="px-4 py-3 text-left">Review</th>
+                                <th class="px-4 py-3"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for policy in policies %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 min-w-[280px]">
+                                    <p class="font-semibold text-gray-900">{{ policy.title }}</p>
+                                    <p class="text-xs text-gray-400">{{ policy.code }} &bull; v{{ policy.version }}{% if policy.category %} &bull; {{ policy.category }}{% endif %}</p>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-1 rounded-full text-xs font-semibold {% if policy.risk_level == 'critical' %}bg-red-100 text-red-700{% elif policy.risk_level == 'high' %}bg-orange-100 text-orange-700{% elif policy.risk_level == 'low' %}bg-green-100 text-green-700{% else %}bg-amber-100 text-amber-700{% endif %}">{{ policy.risk_level.title() }}</span>
+                                </td>
+                                <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{{ policy.status.replace('_',' ').title() }}</span></td>
+                                <td class="px-4 py-3 text-xs {% if policy.is_review_due %}text-red-600 font-semibold{% else %}text-gray-500{% endif %}">{{ policy.review_date.strftime('%d %b %Y') if policy.review_date else '-' }}</td>
+                                <td class="px-4 py-3 text-right"><a href="{{ url_for('audit.policy_detail', policy_id=policy.id) }}" class="text-blue-600 hover:text-blue-700 font-semibold text-xs">Open</a></td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="px-4 py-10 text-center text-gray-400">No policies found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <aside class="space-y-4">
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-calendar-check text-blue-500"></i> Recent Audits</h2>
+                <div class="mt-3 divide-y divide-gray-100">
+                    {% for item in recent_audits %}
+                    <a href="{{ url_for('audit.audit_detail', audit_id=item.id) }}" class="py-3 flex items-start justify-between gap-3 block">
+                        <span>
+                            <span class="block text-sm font-medium text-gray-800">{{ item.title }}</span>
+                            <span class="block text-xs text-gray-400">{{ item.audit_type.title() }} &bull; {{ item.status.replace('_',' ').title() }}</span>
+                        </span>
+                        <span class="text-xs text-gray-500">{{ item.scheduled_date.strftime('%d %b') if item.scheduled_date else '-' }}</span>
+                    </a>
+                    {% else %}
+                    <div class="py-6 text-center text-gray-400 text-sm">No audits planned.</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-magnifying-glass-chart text-red-500"></i> Open Findings</h2>
+                <div class="mt-3 space-y-2">
+                    {% for finding in open_findings %}
+                    <a href="{{ url_for('audit.audit_detail', audit_id=finding.audit_id) }}" class="block border border-gray-100 hover:border-red-200 rounded-lg p-3">
+                        <span class="block text-sm font-medium text-gray-800">{{ finding.title }}</span>
+                        <span class="block text-xs text-gray-400 mt-1">{{ finding.severity.title() }}{% if finding.due_date %} &bull; Due {{ finding.due_date.strftime('%d %b') }}{% endif %}</span>
+                    </a>
+                    {% else %}
+                    <div class="py-6 text-center text-gray-400 text-sm">No open findings.</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow p-5">
+                <h2 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-list-check text-emerald-600"></i> Corrective Actions</h2>
+                <div class="mt-3 space-y-2">
+                    {% for action in due_actions %}
+                    <a href="{{ url_for('audit.audit_detail', audit_id=action.finding.audit_id) }}" class="block border border-gray-100 hover:border-emerald-200 rounded-lg p-3">
+                        <span class="block text-sm font-medium text-gray-800">{{ action.title }}</span>
+                        <span class="block text-xs {% if action.due_date and action.due_date < today %}text-red-500{% else %}text-gray-400{% endif %} mt-1">{{ action.status.replace('_',' ').title() }}{% if action.due_date %} &bull; Due {{ action.due_date.strftime('%d %b') }}{% endif %}</span>
+                    </a>
+                    {% else %}
+                    <div class="py-6 text-center text-gray-400 text-sm">No pending actions.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

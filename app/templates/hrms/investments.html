@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Investment Declarations{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div><span class="text-xs font-semibold uppercase tracking-wide text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">Tax</span><h1 class="text-2xl font-bold text-gray-900 mt-3">Investment Declarations</h1><p class="text-sm text-gray-500 mt-1">Employee tax declarations for {{ financial_year }} with approval workflow.</p></div>
+    <div class="grid grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)] gap-6">
+        <form method="POST" class="bg-white rounded-2xl shadow p-5 space-y-4">
+            <h2 class="font-semibold text-gray-800">Submit Declaration</h2>
+            {% if current_user.can_manage_hrms %}<div><label class="form-label">Employee</label><select name="user_id" class="filter-select w-full">{% for user in employees %}<option value="{{ user.id }}">{{ user.name }}</option>{% endfor %}</select></div>{% endif %}
+            <div><label class="form-label">Financial Year</label><input name="financial_year" value="{{ financial_year }}" class="form-input"></div>
+            <div><label class="form-label">Section</label><select name="section" class="filter-select w-full"><option>80C</option><option>80D</option><option>HRA</option><option>Home Loan</option><option>NPS</option><option>Other</option></select></div>
+            <div><label class="form-label">Declared Amount</label><input type="number" step="0.01" name="declared_amount" class="form-input"></div>
+            <div><label class="form-label">Description</label><textarea name="description" rows="3" class="form-input"></textarea></div>
+            <button class="ticket-action-btn bg-blue-600 hover:bg-blue-700 text-white w-full justify-center"><i class="fas fa-paper-plane"></i> Submit</button>
+        </form>
+        <div class="bg-white rounded-2xl shadow overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-800">Declarations</h2></div>
+            <div class="divide-y divide-gray-100">
+                {% for item in declarations %}
+                <div class="p-4">
+                    <div class="flex items-start justify-between gap-3"><div><p class="font-semibold text-gray-900">{{ item.employee.name }} - {{ item.section }}</p><p class="text-xs text-gray-400">{{ item.financial_year }} &bull; ₹{{ "%.0f"|format(item.declared_amount or 0) }}{% if item.description %} &bull; {{ item.description }}{% endif %}</p></div><span class="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{{ item.status.title() }}</span></div>
+                    {% if current_user.can_manage_hrms and item.status == 'submitted' %}
+                    <form method="POST" action="{{ url_for('hrms.investment_decision', declaration_id=item.id) }}" class="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_auto] gap-2 mt-3">
+                        <input type="number" step="0.01" name="approved_amount" value="{{ item.declared_amount }}" class="form-input" placeholder="Approved amount">
+                        <input name="decision_note" class="form-input" placeholder="Note">
+                        <button name="action" value="approved" class="ticket-action-btn bg-emerald-600 hover:bg-emerald-700 text-white justify-center">Approve</button>
+                        <button name="action" value="rejected" class="ticket-action-btn bg-red-600 hover:bg-red-700 text-white justify-center">Reject</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% else %}<div class="p-10 text-center text-gray-400">No declarations yet.</div>{% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
