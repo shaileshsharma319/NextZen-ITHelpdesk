@@ -13,7 +13,17 @@ Recommended server path:
 /opt/helpdesk
 ```
 
+Recommended single full guide:
+
+[../../PRODUCTION_DEPLOYMENT_STEP_BY_STEP.md](../../PRODUCTION_DEPLOYMENT_STEP_BY_STEP.md)
+
+For a brand-new Ubuntu server, start here:
+
+[../../UBUNTU_FRESH_INSTALL.md](../../UBUNTU_FRESH_INSTALL.md)
+
 For a fresh/blank production database, also see:
+
+[DB_SETUP.md](../../DB_SETUP.md)
 
 [BLANK_DB_MIGRATION.md](BLANK_DB_MIGRATION.md)
 
