@@ -161,12 +161,7 @@ Create environment config folder:
 sudo mkdir -p /etc/helpdesk
 ```
 
-Create upload folder:
-
-```bash
-sudo mkdir -p /opt/helpdesk/app/static/uploads
-sudo chown -R www-data:www-data /opt/helpdesk/app/static/uploads
-```
+Do not create the upload folder yet. The Git clone step recreates `/opt/helpdesk`, so upload permissions must be applied after clone.
 
 ## Step 4. Git Clone Project
 
@@ -187,6 +182,27 @@ ls -la /opt/helpdesk/wsgi.py
 ```
 
 If any file is missing, stop and fix Git clone first.
+
+Create upload folder after clone:
+
+```bash
+sudo mkdir -p /opt/helpdesk/app/static/uploads
+sudo chown -R www-data:www-data /opt/helpdesk/app/static/uploads
+sudo find /opt/helpdesk/app/static/uploads -type d -exec chmod 775 {} \;
+sudo find /opt/helpdesk/app/static/uploads -type f -exec chmod 664 {} \;
+```
+
+Verify permissions:
+
+```bash
+ls -ld /opt/helpdesk/app/static/uploads
+```
+
+Expected owner:
+
+```text
+www-data www-data
+```
 
 ## Step 5. Python Virtual Environment
 
@@ -239,6 +255,7 @@ FLASK_HOST=127.0.0.1
 FLASK_PORT=5000
 SECRET_KEY=paste-generated-secret-here
 DATABASE_URL=mysql+pymysql://helpdesk_app:change-this-password@localhost:3306/helpdesk_db
+UPLOAD_FOLDER=/opt/helpdesk/app/static/uploads
 ```
 
 Optional mail values:
@@ -323,6 +340,8 @@ EXIT;
 ```
 
 The first admin must set up MFA on first login.
+
+`init-admin` also assigns the admin to `IT Department` automatically. If the admin user already exists but has no department/domain, run the same command again with the same email to repair it.
 
 ## Step 9. Install And Start Services
 
@@ -481,6 +500,67 @@ sudo /opt/helpdesk/venv/bin/pip install -r /opt/helpdesk/requirements.txt
 Error:
 
 ```text
+RuntimeError: Either 'SQLALCHEMY_DATABASE_URI' or 'SQLALCHEMY_BINDS' must be set.
+```
+
+Reason:
+
+```text
+Flask cannot see DATABASE_URL. On Ubuntu the production env file must exist at /etc/helpdesk/helpdesk.env.
+```
+
+Fix:
+
+```bash
+sudo cp /opt/helpdesk/.env.example /etc/helpdesk/helpdesk.env
+sudo nano /etc/helpdesk/helpdesk.env
+```
+
+Confirm this line exists and has your real DB password:
+
+```env
+DATABASE_URL=mysql+pymysql://helpdesk_app:change-this-password@localhost:3306/helpdesk_db
+```
+
+Protect it:
+
+```bash
+sudo chown root:www-data /etc/helpdesk/helpdesk.env
+sudo chmod 640 /etc/helpdesk/helpdesk.env
+```
+
+Verify Flask can read it:
+
+```bash
+cd /opt/helpdesk
+sudo -u www-data /opt/helpdesk/venv/bin/flask --app wsgi:app routes
+```
+
+Error:
+
+```text
+Department is not assigned to your account.
+```
+
+Reason:
+
+```text
+The user exists, but users.department_id is NULL.
+```
+
+Fix for first production admin:
+
+```bash
+cd /opt/helpdesk
+sudo -u www-data /opt/helpdesk/venv/bin/flask --app wsgi:app init-admin
+sudo systemctl restart helpdesk
+```
+
+Use the same email address. The command repairs missing department/domain and admin access.
+
+Error:
+
+```text
 Access denied for user 'helpdesk_app'@'localhost'
 ```
 
@@ -503,6 +583,35 @@ Then update:
 ```bash
 sudo nano /etc/helpdesk/helpdesk.env
 sudo systemctl restart helpdesk helpdesk-email-fetch
+```
+
+Error:
+
+```text
+Email fetch failed: [Errno 13] Permission denied: '/opt/helpdesk/app/static/uploads'
+```
+
+Reason:
+
+```text
+The email fetch service runs as www-data, but the uploads folder is missing or owned by another user.
+```
+
+Fix:
+
+```bash
+sudo mkdir -p /opt/helpdesk/app/static/uploads
+sudo chown -R www-data:www-data /opt/helpdesk/app/static/uploads
+sudo find /opt/helpdesk/app/static/uploads -type d -exec chmod 775 {} \;
+sudo find /opt/helpdesk/app/static/uploads -type f -exec chmod 664 {} \;
+sudo systemctl restart helpdesk helpdesk-email-fetch
+```
+
+Verify:
+
+```bash
+ls -ld /opt/helpdesk/app/static/uploads
+sudo -u www-data test -w /opt/helpdesk/app/static/uploads && echo "uploads writable"
 ```
 
 Error:

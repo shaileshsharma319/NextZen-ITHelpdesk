@@ -3,6 +3,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+server_env_file = os.environ.get('HELPDESK_ENV_FILE', '/etc/helpdesk/helpdesk.env')
+if os.path.exists(server_env_file):
+    load_dotenv(server_env_file, override=False)
+
 class Config:
     FLASK_ENV = os.environ.get('FLASK_ENV', 'development').lower()
     SECRET_KEY = os.environ.get('SECRET_KEY')

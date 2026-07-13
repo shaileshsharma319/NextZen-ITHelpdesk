@@ -5,6 +5,7 @@ import json
 import secrets
 import struct
 import time
+from io import BytesIO
 from urllib.parse import quote
 
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -43,6 +44,28 @@ def provisioning_uri(user, secret, issuer='IT HelpDesk'):
     label = quote(f'{issuer}:{user.email}')
     issuer_q = quote(issuer)
     return f'otpauth://totp/{label}?secret={secret}&issuer={issuer_q}&digits=6&period=30'
+
+
+def qr_code_data_uri(uri):
+    try:
+        import qrcode
+    except ImportError:
+        return None
+
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=3,
+    )
+    qr.add_data(uri)
+    qr.make(fit=True)
+
+    image = qr.make_image(fill_color='black', back_color='white')
+    buffer = BytesIO()
+    image.save(buffer, format='PNG')
+    encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
+    return f'data:image/png;base64,{encoded}'
 
 
 def generate_backup_codes(count=8):

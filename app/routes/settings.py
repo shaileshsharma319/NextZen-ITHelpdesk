@@ -9,6 +9,7 @@ from app.utils.two_factor import (
     generate_totp_secret,
     hash_backup_codes,
     provisioning_uri,
+    qr_code_data_uri,
     verify_totp,
 )
 
@@ -75,10 +76,12 @@ def security():
                 db.session.commit()
                 flash('New backup codes generated.', 'success')
 
+    setup_uri = provisioning_uri(current_user, setup_secret)
     return render_template(
         'settings/security.html',
         setup_secret=setup_secret,
-        provisioning_uri=provisioning_uri(current_user, setup_secret),
+        provisioning_uri=setup_uri,
+        qr_code_data_uri=qr_code_data_uri(setup_uri),
         backup_codes=backup_codes,
         backup_code_count=backup_code_count(current_user),
         can_manage_mfa=current_user.can_manage_user_accounts,

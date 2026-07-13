@@ -62,8 +62,17 @@
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div class="border border-gray-100 rounded-2xl p-4">
-                        <h3 class="font-semibold text-gray-900">1. Add This Secret</h3>
-                        <p class="text-sm text-gray-500 mt-1">Open your authenticator app and add a new account using this setup key.</p>
+                        <h3 class="font-semibold text-gray-900">1. Scan QR Code</h3>
+                        <p class="text-sm text-gray-500 mt-1">Open your authenticator app and scan this QR code.</p>
+                        {% if qr_code_data_uri %}
+                        <div class="mt-4 bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-center">
+                            <img src="{{ qr_code_data_uri }}" alt="Authenticator QR code" class="w-48 h-48">
+                        </div>
+                        {% else %}
+                        <div class="mt-4 bg-amber-50 border border-amber-100 text-amber-800 rounded-xl p-4 text-sm">
+                            QR code library is not installed. Use the setup key below, then run <code>pip install -r requirements.txt</code>.
+                        </div>
+                        {% endif %}
                         <div class="mt-4 bg-slate-900 text-white rounded-xl p-4">
                             <p class="text-xs text-slate-400 mb-1">Setup Key</p>
                             <code class="block text-lg font-semibold tracking-widest break-all">{{ setup_secret }}</code>

@@ -112,6 +112,159 @@ def _html_to_text(html):
     return _strip_html(html).replace('\xa0', ' ').strip()
 
 
+def _ticket_ref(ticket):
+    return escape(ticket.ticket_number or f'HD-{ticket.id:05d}')
+
+
+def _label(value):
+    return escape(str(value or '').replace('_', ' ').title())
+
+
+def _badge(text, bg, color):
+    return (
+        f'<span style="display:inline-block;padding:4px 10px;border-radius:999px;'
+        f'background:{bg};color:{color};font-size:12px;font-weight:700;line-height:16px;">'
+        f'{escape(text)}</span>'
+    )
+
+
+def _status_badge(status):
+    colors = {
+        'open': ('#dbeafe', '#1d4ed8'),
+        'in_progress': ('#fef3c7', '#92400e'),
+        'pending': ('#f3e8ff', '#7e22ce'),
+        'resolved': ('#dcfce7', '#166534'),
+        'closed': ('#e5e7eb', '#374151'),
+    }
+    bg, color = colors.get(status, ('#e5e7eb', '#374151'))
+    return _badge(str(status or '').replace('_', ' ').title(), bg, color)
+
+
+def _priority_badge(priority):
+    colors = {
+        'low': ('#ecfdf5', '#047857'),
+        'medium': ('#eff6ff', '#1d4ed8'),
+        'high': ('#fff7ed', '#c2410c'),
+        'critical': ('#fef2f2', '#b91c1c'),
+    }
+    bg, color = colors.get(priority, ('#e5e7eb', '#374151'))
+    return _badge(str(priority or '').upper(), bg, color)
+
+
+def _detail_table(rows):
+    cells = []
+    for label, value in rows:
+        cells.append(
+            '<tr>'
+            '<td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;'
+            'color:#6b7280;font-size:13px;width:38%;vertical-align:top;">'
+            f'{escape(label)}'
+            '</td>'
+            '<td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;'
+            'color:#111827;font-size:13px;font-weight:600;vertical-align:top;">'
+            f'{value}'
+            '</td>'
+            '</tr>'
+        )
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="border-collapse:collapse;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">'
+        + ''.join(cells) +
+        '</table>'
+    )
+
+
+def _action_button(label, href='#'):
+    return (
+        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:18px;">'
+        '<tr><td style="background:#2563eb;border-radius:10px;">'
+        f'<a href="{escape(href)}" style="display:inline-block;padding:11px 18px;'
+        'font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">'
+        f'{escape(label)}</a>'
+        '</td></tr></table>'
+    )
+
+
+def _email_shell(preheader, title, eyebrow, intro, content, footer_note=None):
+    footer_note = footer_note or 'This notification was sent by IT HelpDesk. Please keep the ticket reference in replies.'
+    return f"""<!doctype html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{escape(title)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+  <div style="display:none;max-height:0;overflow:hidden;color:#f3f4f6;font-size:1px;line-height:1px;">
+    {escape(preheader)}
+  </div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 0;">
+    <tr>
+      <td align="center" style="padding:0 12px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e5e7eb;">
+          <tr>
+            <td style="background:#0f172a;padding:22px 26px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#93c5fd;font-weight:700;">{escape(eyebrow)}</div>
+                    <div style="font-size:22px;line-height:30px;color:#ffffff;font-weight:800;margin-top:6px;">{escape(title)}</div>
+                  </td>
+                  <td align="right" style="font-size:13px;color:#cbd5e1;font-weight:700;">IT HelpDesk</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:26px;">
+              <p style="margin:0 0 18px 0;color:#374151;font-size:15px;line-height:23px;">{intro}</p>
+              {content}
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:16px 26px;color:#6b7280;font-size:12px;line-height:18px;">
+              {escape(footer_note)}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+
+def _ticket_summary(ticket, include_requester=False, include_description=False, requester_email=None, assignee=None):
+    rows = [
+        ('Ticket Number', f'<strong>{_ticket_ref(ticket)}</strong>'),
+        ('Subject', escape(ticket.email_subject or ticket.title)),
+        ('Status', _status_badge(ticket.status)),
+        ('Priority', _priority_badge(ticket.priority)),
+        ('Source', _label(ticket.source)),
+    ]
+    if include_requester:
+        requester = requester_email or getattr(ticket, 'email_from', None) or (ticket.creator.email if ticket.creator else '')
+        rows.append(('Requester', escape(requester or '-')))
+    if assignee:
+        rows.append(('Assignee', escape(assignee.name)))
+    if getattr(ticket, 'category', None):
+        category = ticket.category
+        if getattr(ticket, 'sub_category', None):
+            category = f'{category} / {ticket.sub_category}'
+        rows.append(('Category', escape(category)))
+
+    html = _detail_table(rows)
+    if include_description:
+        html += (
+            '<div style="margin-top:18px;">'
+            '<div style="font-size:13px;color:#6b7280;font-weight:700;margin-bottom:8px;">Description</div>'
+            '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;color:#111827;font-size:14px;line-height:22px;">'
+            f'{email_content(ticket.description)}'
+            '</div></div>'
+        )
+    return html
+
+
 def _set_html_body(msg, html, cfg, user=None):
     html = _append_signature_html(html, cfg, user)
     msg.html = html
@@ -292,6 +445,169 @@ def _strip_html(value):
     return value.strip()
 
 
+def send_ticket_created(ticket, user):
+    cfg = _get_config()
+    if cfg:
+        if not cfg.notify_ticket_created:
+            return
+        _apply_config(cfg)
+    if not user.email or user.email.endswith('@helpdesk.com'):
+        raise Exception(f'User {user.name} has no real email address set ({user.email}). Please update it in Admin > Users.')
+
+    html = _email_shell(
+        preheader=f'Your ticket {_ticket_ref(ticket)} has been created.',
+        title='Ticket Created',
+        eyebrow='Request received',
+        intro=f'Hello {escape(user.name)}, your request has been successfully submitted. Our support team will review it and respond as soon as possible.',
+        content=_ticket_summary(ticket, include_description=True) + _action_button('View Ticket'),
+    )
+    msg = _build_msg(
+        subject=f'[{ticket.ticket_number or ticket.id}] Ticket Created: {ticket.title}',
+        recipients=[user.email],
+        body=_html_to_text(html),
+        cfg=cfg,
+    )
+    _set_html_body(msg, html, cfg, user)
+    mail.send(msg)
+
+
+def send_ticket_updated(ticket, user):
+    cfg = _get_config()
+    if cfg:
+        if not cfg.notify_ticket_updated:
+            return
+        _apply_config(cfg)
+
+    html = _email_shell(
+        preheader=f'Ticket {_ticket_ref(ticket)} status is now {ticket.status.replace("_", " ").title()}.',
+        title='Ticket Updated',
+        eyebrow='Status change',
+        intro=f'Hello {escape(user.name)}, your ticket has been updated. Please review the latest status below.',
+        content=_ticket_summary(ticket) + _action_button('View Ticket'),
+    )
+    msg = _build_msg(
+        subject=f'[{ticket.ticket_number or ticket.id}] Status Update: {ticket.status.replace("_", " ").title()}',
+        recipients=[user.email],
+        body=_html_to_text(html),
+        cfg=cfg,
+    )
+    _set_html_body(msg, html, cfg, user)
+    mail.send(msg)
+
+
+def send_ticket_assigned(ticket, assignee):
+    cfg = _get_config()
+    if cfg:
+        if not cfg.notify_ticket_assigned:
+            return
+        _apply_config(cfg)
+
+    html = _email_shell(
+        preheader=f'Ticket {_ticket_ref(ticket)} has been assigned to you.',
+        title='Ticket Assigned',
+        eyebrow='Action required',
+        intro=f'Hello {escape(assignee.name)}, a ticket has been assigned to you. Please review and take ownership.',
+        content=_ticket_summary(ticket, include_requester=True, include_description=True, assignee=assignee) + _action_button('Open Ticket'),
+    )
+    msg = _build_msg(
+        subject=f'[{ticket.ticket_number or ticket.id}] Assigned to You: {ticket.title}',
+        recipients=[assignee.email],
+        body=_html_to_text(html),
+        cfg=cfg,
+    )
+    _set_html_body(msg, html, cfg, assignee)
+    mail.send(msg)
+
+
+def send_email_ticket_notification(ticket, sender_email):
+    cfg = _get_config()
+    if not cfg or not cfg.notify_email_ticket:
+        return
+    _apply_config(cfg)
+    from app.models.user import User
+
+    admins_staff = User.query.filter(
+        User.role.in_(['master_admin', 'admin_staff']), User._is_active == True
+    ).all()
+    recipients = [u.email for u in admins_staff if u.email]
+    if not recipients:
+        return
+
+    html = _email_shell(
+        preheader=f'New inbound email ticket {_ticket_ref(ticket)} from {sender_email}.',
+        title='New Email Ticket',
+        eyebrow='Inbound email',
+        intro='A new ticket was automatically created from an inbound email. Please assign and handle it from the helpdesk queue.',
+        content=_ticket_summary(ticket, include_requester=True, include_description=True, requester_email=sender_email) + _action_button('Review Ticket'),
+    )
+    msg = _build_msg(
+        subject=f'[{ticket.ticket_number or ticket.id}] Email Ticket: {ticket.title}',
+        recipients=recipients,
+        body=_html_to_text(html),
+        cfg=cfg,
+    )
+    _set_html_body(msg, html, cfg, None)
+    mail.send(msg)
+
+
+def send_welcome_email(user, plain_password):
+    cfg = _get_config()
+    if cfg:
+        _apply_config(cfg)
+
+    html = _email_shell(
+        preheader='Your IT HelpDesk account has been created.',
+        title='Welcome to IT HelpDesk',
+        eyebrow='Account created',
+        intro=f'Hello {escape(user.name)}, your IT HelpDesk account has been created by an administrator. Please sign in and change your password immediately.',
+        content=_detail_table([
+            ('Name', escape(user.name)),
+            ('Email', escape(user.email)),
+            ('Temporary Password', f'<code style="font-weight:700;color:#111827;">{escape(plain_password)}</code>'),
+            ('Role', escape(user.role_label if hasattr(user, 'role_label') else user.role.title())),
+        ]) + _action_button('Open HelpDesk'),
+        footer_note='For security, change your temporary password after first login and set up MFA if requested.',
+    )
+    msg = _build_msg(
+        subject='Welcome to IT HelpDesk - Your Account Details',
+        recipients=[user.email],
+        body=_html_to_text(html),
+        cfg=cfg,
+    )
+    _set_html_body(msg, html, cfg, None)
+    mail.send(msg)
+
+
+def test_email_config(cfg, test_recipient=None):
+    try:
+        _apply_config(cfg)
+        recipient = test_recipient or cfg.mail_username
+        html = _email_shell(
+            preheader='Your IT HelpDesk email configuration is working.',
+            title='Email Config Test',
+            eyebrow='SMTP verified',
+            intro='This is a test email from IT HelpDesk. Your email configuration is working correctly.',
+            content=_detail_table([
+                ('SMTP Host', escape(cfg.mail_server)),
+                ('Sender', escape(cfg.mail_from)),
+                ('Port', escape(cfg.mail_port)),
+                ('TLS', escape('Enabled' if cfg.mail_use_tls else 'Disabled')),
+            ]),
+            footer_note='If this email appears correctly in Outlook, Zoho, Hostinger, and webmail, notifications are ready.',
+        )
+        msg = Message(
+            subject='IT HelpDesk - Email Config Test',
+            recipients=[recipient],
+            sender=(cfg.mail_from_name, cfg.mail_from),
+            body=_html_to_text(html),
+        )
+        _set_html_body(msg, html, cfg, None)
+        mail.send(msg)
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+
 def _ticket_reply_recipient(ticket):
     if getattr(ticket, 'email_from', None):
         return ticket.email_from
@@ -340,6 +656,49 @@ Status: {escape(ticket.status.replace('_', ' ').title())}
             pass
     mail.send(msg)
 
+
+def send_ticket_reply(ticket, reply, attachments=None):
+    """Send a public/email reply with an Outlook-safe modern format."""
+    cfg = _get_config()
+    if not cfg:
+        raise Exception('Email configuration is not set.')
+    recipient = _ticket_reply_recipient(ticket)
+    if not recipient:
+        raise Exception('Ticket has no requester email address.')
+    if recipient.endswith('@helpdesk.com') and not getattr(ticket, 'email_from', None):
+        raise Exception(f'Requester has placeholder email address ({recipient}).')
+
+    _apply_config(cfg)
+    subject = f'Re: {ticket.email_subject or ticket.title} [{ticket.ticket_number or ticket.id}]'
+    reply_body = (
+        '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;'
+        'color:#111827;font-size:14px;line-height:22px;">'
+        f'{email_content(reply.message)}'
+        '</div>'
+    )
+    html = _email_shell(
+        preheader=f'New reply on ticket {_ticket_ref(ticket)}.',
+        title='Support Reply',
+        eyebrow='Ticket response',
+        intro='Hello, our support team has replied to your ticket. Please review the response below.',
+        content=reply_body + '<div style="height:16px;line-height:16px;">&nbsp;</div>' + _ticket_summary(ticket),
+        footer_note='You can reply to this email to continue the conversation. Keep the ticket reference in the subject.',
+    )
+    msg = _build_msg(subject=subject, recipients=[recipient], body=_html_to_text(html), cfg=cfg)
+    _set_html_body(msg, html, cfg, reply.author)
+    if ticket.email_message_id:
+        msg.extra_headers = {
+            'In-Reply-To': ticket.email_message_id,
+            'References': ticket.email_message_id,
+        }
+    for attachment in attachments or []:
+        try:
+            path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'tickets', str(ticket.id), attachment.stored_filename)
+            with open(path, 'rb') as fp:
+                msg.attach(attachment.original_filename, attachment.content_type or 'application/octet-stream', fp.read())
+        except Exception:
+            pass
+    mail.send(msg)
 
 
 def _content_id(part):

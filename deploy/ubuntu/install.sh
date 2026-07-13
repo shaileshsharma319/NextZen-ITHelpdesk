@@ -43,6 +43,8 @@ python3 -m venv "${APP_DIR}/venv"
 echo "== Creating upload folders =="
 mkdir -p "${APP_DIR}/app/static/uploads"
 chown -R "${APP_USER}:${APP_GROUP}" "${APP_DIR}/app/static/uploads"
+find "${APP_DIR}/app/static/uploads" -type d -exec chmod 775 {} \;
+find "${APP_DIR}/app/static/uploads" -type f -exec chmod 664 {} \;
 
 echo "== Creating production env file =="
 mkdir -p "${ENV_DIR}"

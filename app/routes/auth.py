@@ -9,6 +9,7 @@ from app.utils.two_factor import (
     generate_totp_secret,
     hash_backup_codes,
     provisioning_uri,
+    qr_code_data_uri,
     verify_backup_code,
     verify_totp,
 )
@@ -139,11 +140,13 @@ def two_factor_setup():
             return render_template('auth/two_factor_setup.html', user=user, backup_codes=backup_codes, setup_complete=True, next_url=next_url)
         flash('Invalid authenticator code. Please try again.', 'danger')
 
+    setup_uri = provisioning_uri(user, setup_secret)
     return render_template(
         'auth/two_factor_setup.html',
         user=user,
         setup_secret=setup_secret,
-        provisioning_uri=provisioning_uri(user, setup_secret),
+        provisioning_uri=setup_uri,
+        qr_code_data_uri=qr_code_data_uri(setup_uri),
         setup_complete=False,
     )
 
