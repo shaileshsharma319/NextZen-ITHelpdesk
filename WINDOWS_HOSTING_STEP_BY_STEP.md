@@ -283,28 +283,304 @@ Users can open:
 http://SERVER-IP:5000
 ```
 
-## Step 12. Optional IIS Reverse Proxy
+## Step 12. Host With IIS Reverse Proxy
 
-For production domain and SSL, keep Waitress on `127.0.0.1:5000` and put IIS in front.
+IIS should work as the public front door. Flask should still run behind IIS using Waitress.
 
-Install IIS:
-
-```powershell
-Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole,IIS-WebServer,IIS-ManagementConsole -All
-```
-
-Install:
-
-- IIS URL Rewrite
-- IIS Application Request Routing
-
-Then create reverse proxy:
+Recommended flow:
 
 ```text
-https://helpdesk.yourcompany.com -> http://127.0.0.1:5000
+User Browser
+  -> IIS website on 80/443
+  -> Reverse proxy to Waitress
+  -> http://127.0.0.1:5000
+  -> Flask HelpDesk app
+  -> MySQL
 ```
 
-Use IIS for SSL certificate binding.
+Keep Waitress private:
+
+```text
+127.0.0.1:5000
+```
+
+Use IIS for:
+
+- domain name
+- SSL certificate
+- public port 80/443
+- reverse proxy
+- Windows hosting management
+
+### 12.1 Install IIS
+
+Open PowerShell as Administrator:
+
+```powershell
+Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole,IIS-WebServer,IIS-ManagementConsole,IIS-HttpRedirect,IIS-StaticContent,IIS-DefaultDocument -All
+```
+
+Open IIS Manager:
+
+```powershell
+inetmgr
+```
+
+### 12.2 Install IIS URL Rewrite And ARR
+
+Download and install these two Microsoft IIS modules:
+
+```text
+IIS URL Rewrite
+https://www.iis.net/downloads/microsoft/url-rewrite
+
+IIS Application Request Routing ARR
+https://www.iis.net/downloads/microsoft/application-request-routing
+```
+
+After install, reopen IIS Manager.
+
+### 12.3 Enable ARR Proxy
+
+In IIS Manager:
+
+```text
+Server Name
+  -> Application Request Routing Cache
+  -> Server Proxy Settings
+  -> Enable proxy
+  -> Apply
+```
+
+Important setting:
+
+```text
+Enable proxy: Checked
+```
+
+Optional but recommended:
+
+```text
+Reverse rewrite host in response headers: Checked
+```
+
+### 12.4 Create IIS Website
+
+Create folder:
+
+```powershell
+mkdir "C:\HelpDesk\iis-root"
+```
+
+In IIS Manager:
+
+```text
+Sites
+  -> Add Website
+```
+
+Use:
+
+```text
+Site name:
+NextZen HelpDesk
+
+Physical path:
+C:\HelpDesk\iis-root
+
+Binding type:
+http
+
+IP address:
+All Unassigned
+
+Port:
+80
+
+Host name:
+helpdesk.yourcompany.com
+```
+
+If you do not have a domain yet, leave Host name blank and use server IP.
+
+### 12.5 Add Reverse Proxy Rule
+
+In IIS Manager:
+
+```text
+NextZen HelpDesk site
+  -> URL Rewrite
+  -> Add Rule(s)
+  -> Reverse Proxy
+```
+
+Inbound rule target:
+
+```text
+127.0.0.1:5000
+```
+
+Click OK / Apply.
+
+This creates a rule like:
+
+```text
+http://helpdesk.yourcompany.com/* -> http://127.0.0.1:5000/*
+```
+
+### 12.6 Confirm Waitress Service Is Running
+
+```powershell
+Get-Service HelpDeskApp
+Restart-Service HelpDeskApp
+```
+
+Test local backend:
+
+```text
+http://127.0.0.1:5000
+```
+
+Test IIS front URL:
+
+```text
+http://helpdesk.yourcompany.com
+```
+
+or:
+
+```text
+http://SERVER-IP
+```
+
+### 12.7 Add Firewall Rule For IIS
+
+Allow HTTP:
+
+```powershell
+New-NetFirewallRule -DisplayName "HelpDesk IIS HTTP 80" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+```
+
+Allow HTTPS if SSL is used:
+
+```powershell
+New-NetFirewallRule -DisplayName "HelpDesk IIS HTTPS 443" -Direction Inbound -Protocol TCP -LocalPort 443 -Action Allow
+```
+
+If using IIS reverse proxy, you do not need to open port 5000 to the network. Keep Waitress on `127.0.0.1`.
+
+### 12.8 Add SSL Certificate
+
+In IIS Manager:
+
+```text
+Server Name
+  -> Server Certificates
+  -> Import / Create Certificate
+```
+
+Then bind SSL:
+
+```text
+NextZen HelpDesk site
+  -> Bindings
+  -> Add
+```
+
+Use:
+
+```text
+Type:
+https
+
+Port:
+443
+
+Host name:
+helpdesk.yourcompany.com
+
+SSL certificate:
+Select certificate
+```
+
+### 12.9 Force HTTP To HTTPS
+
+In IIS URL Rewrite, add HTTP to HTTPS redirect rule:
+
+```text
+URL Rewrite
+  -> Add Rule(s)
+  -> Blank rule
+```
+
+Use:
+
+```text
+Name:
+Redirect HTTP to HTTPS
+
+Pattern:
+(.*)
+
+Condition:
+{HTTPS} = off
+
+Action type:
+Redirect
+
+Redirect URL:
+https://{HTTP_HOST}/{R:1}
+
+Redirect type:
+Permanent (301)
+```
+
+### 12.10 IIS Troubleshooting
+
+If IIS shows `502 Bad Gateway`:
+
+```powershell
+Restart-Service HelpDeskApp
+```
+
+Then confirm backend:
+
+```text
+http://127.0.0.1:5000
+```
+
+If backend does not open, check service logs:
+
+```powershell
+notepad "C:\HelpDesk\helpdesk-service-error.log"
+```
+
+If CSS/icons do not load:
+
+```text
+IIS URL Rewrite rule must proxy all paths, including /static/*
+```
+
+If login works on `127.0.0.1:5000` but not on IIS domain:
+
+```text
+Check SECRET_KEY is fixed in .env.
+Do not regenerate SECRET_KEY after users start logging in.
+Restart HelpDeskApp after .env changes.
+```
+
+If large uploads fail through IIS:
+
+```text
+Increase IIS request limit:
+IIS Manager -> NextZen HelpDesk -> Request Filtering -> Edit Feature Settings -> Maximum allowed content length
+```
+
+For 21 MB upload support, set at least:
+
+```text
+30000000
+```
 
 ## Step 13. Update Application From Git
 
@@ -413,4 +689,3 @@ View logs:
 notepad "C:\HelpDesk\helpdesk-service.log"
 notepad "C:\HelpDesk\helpdesk-service-error.log"
 ```
-
