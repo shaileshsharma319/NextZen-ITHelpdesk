@@ -13,6 +13,10 @@ Recommended server path:
 /opt/helpdesk
 ```
 
+For a fresh/blank production database, also see:
+
+[BLANK_DB_MIGRATION.md](BLANK_DB_MIGRATION.md)
+
 ## 1. Install Server Packages
 
 ```bash
