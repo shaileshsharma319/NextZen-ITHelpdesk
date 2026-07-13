@@ -50,6 +50,20 @@ nginx -v
 git --version
 ```
 
+If Git is missing:
+
+```text
+sudo: git: command not found
+```
+
+Install Git before folder creation or clone:
+
+```bash
+sudo apt update
+sudo apt install -y git
+git --version
+```
+
 ## Step 2. MySQL Install And Full Configuration
 
 Start MySQL:
@@ -120,6 +134,19 @@ helpdesk_db
 ```
 
 ## Step 3. Folder Creation And Permissions
+
+Before creating folders, confirm Git is available:
+
+```bash
+git --version
+```
+
+If this fails, run:
+
+```bash
+sudo apt update
+sudo apt install -y git
+```
 
 Create project folder:
 
@@ -400,6 +427,30 @@ sudo systemctl restart helpdesk-email-fetch
 ```
 
 ## Step 14. Common Errors
+
+Error:
+
+```text
+sudo: git: command not found
+bash: cd: /opt/helpdesk: No such file or directory
+```
+
+Reason:
+
+```text
+Git is not installed, so clone failed. Because clone failed, /opt/helpdesk was not created.
+```
+
+Fix:
+
+```bash
+sudo apt update
+sudo apt install -y git
+git --version
+sudo rm -rf /opt/helpdesk
+sudo git clone https://github.com/shaileshsharma319/NextZen-ITHelpdesk.git /opt/helpdesk
+cd /opt/helpdesk
+```
 
 Error:
 
