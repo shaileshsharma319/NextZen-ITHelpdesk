@@ -9,6 +9,12 @@ seed*.py
 *_seed.py
 demo*.py
 sample*.py
+check_*.py
+*_test.py
+fetch_*_tickets.py
+migrate_*.py
+migrations.py
+update_*.py
 *.log
 *.sqlite
 *.db
