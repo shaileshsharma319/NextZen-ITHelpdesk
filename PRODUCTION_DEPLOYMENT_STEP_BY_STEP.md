@@ -445,6 +445,40 @@ sudo systemctl restart helpdesk
 sudo systemctl restart helpdesk-email-fetch
 ```
 
+For updates that include admin/domain/department repair, run:
+
+```bash
+cd /opt/helpdesk
+sudo git pull
+sudo /opt/helpdesk/venv/bin/pip install -r /opt/helpdesk/requirements.txt
+sudo -u www-data /opt/helpdesk/venv/bin/flask --app wsgi:app init-defaults
+sudo -u www-data /opt/helpdesk/venv/bin/flask --app wsgi:app init-admin
+sudo systemctl restart helpdesk helpdesk-email-fetch
+```
+
+## Step 13.1. Date Wise Production Fix Commands
+
+### 2026-07-13 - Ubuntu Env, Admin Department, MFA QR, Email Format, Upload Permission
+
+Run this after pulling the latest Git changes:
+
+```bash
+cd /opt/helpdesk
+sudo git pull
+sudo /opt/helpdesk/venv/bin/pip install -r /opt/helpdesk/requirements.txt
+sudo -u www-data /opt/helpdesk/venv/bin/flask --app wsgi:app init-defaults
+sudo -u www-data /opt/helpdesk/venv/bin/flask --app wsgi:app init-admin
+sudo systemctl restart helpdesk helpdesk-email-fetch
+```
+
+This date-wise fix covers:
+
+- `/etc/helpdesk/helpdesk.env` loading for `DATABASE_URL`
+- first admin department/domain repair
+- MFA QR code dependency install
+- modern notification email format
+- upload folder permission fixes for email fetch attachments
+
 ## Step 14. Common Errors
 
 Error:
