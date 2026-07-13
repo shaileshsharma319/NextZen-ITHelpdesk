@@ -4,7 +4,67 @@ Use this process when the Ubuntu server has a fresh/blank MySQL database.
 
 This project does not use a public seed page. Initial setup is done with private terminal commands only.
 
-## 1. Create Blank Database
+## 1. Install MySQL Server
+
+Update Ubuntu packages:
+
+```bash
+sudo apt update
+```
+
+Install MySQL:
+
+```bash
+sudo apt install -y mysql-server
+```
+
+Start and enable MySQL:
+
+```bash
+sudo systemctl enable mysql
+sudo systemctl start mysql
+```
+
+Check MySQL status:
+
+```bash
+sudo systemctl status mysql
+```
+
+Expected result:
+
+```text
+active (running)
+```
+
+## 2. Secure MySQL
+
+Run the secure setup wizard:
+
+```bash
+sudo mysql_secure_installation
+```
+
+Recommended answers:
+
+```text
+VALIDATE PASSWORD COMPONENT: Y
+Password strength: 2
+Remove anonymous users: Y
+Disallow root login remotely: Y
+Remove test database: Y
+Reload privilege tables: Y
+```
+
+If Ubuntu uses socket login for MySQL root, this is normal:
+
+```bash
+sudo mysql
+```
+
+You do not need to expose MySQL root password to the Flask app.
+
+## 3. Create Blank Database
 
 Login to MySQL:
 
@@ -23,7 +83,19 @@ FLUSH PRIVILEGES;
 EXIT;
 ```
 
-## 2. Create Production Environment File
+Verify database and user:
+
+```bash
+sudo mysql
+```
+
+```sql
+SHOW DATABASES;
+SELECT user, host FROM mysql.user WHERE user = 'helpdesk_app';
+EXIT;
+```
+
+## 4. Create Production Environment File
 
 ```bash
 sudo mkdir -p /etc/helpdesk
@@ -55,7 +127,28 @@ sudo chown root:www-data /etc/helpdesk/helpdesk.env
 sudo chmod 640 /etc/helpdesk/helpdesk.env
 ```
 
-## 3. Create Tables And Defaults
+## 5. Test MySQL App User Login
+
+```bash
+mysql -u helpdesk_app -p helpdesk_db
+```
+
+Enter the password used in `DATABASE_URL`.
+
+Then verify:
+
+```sql
+SELECT DATABASE();
+EXIT;
+```
+
+Expected result:
+
+```text
+helpdesk_db
+```
+
+## 6. Create Tables And Defaults
 
 The app creates tables automatically when Flask loads.
 
@@ -73,7 +166,7 @@ This creates:
 
 It does not create demo tickets, demo users, demo assets, or sample passwords.
 
-## 4. Create First Admin
+## 7. Create First Admin
 
 ```bash
 cd /opt/helpdesk
@@ -88,7 +181,7 @@ It will ask for:
 
 The first admin is created as system admin and MFA is required on first login.
 
-## 5. Verify Database
+## 8. Verify Database
 
 ```bash
 sudo mysql
@@ -108,7 +201,7 @@ Expected result:
 - departments exist
 - one admin user exists
 
-## 6. Start Services
+## 9. Start Services
 
 ```bash
 sudo systemctl start helpdesk
@@ -122,7 +215,48 @@ sudo systemctl status helpdesk
 sudo systemctl status helpdesk-email-fetch
 ```
 
-## 7. After Git Updates
+## 10. Useful MySQL Commands
+
+Login as MySQL admin:
+
+```bash
+sudo mysql
+```
+
+Login as app user:
+
+```bash
+mysql -u helpdesk_app -p helpdesk_db
+```
+
+Show tables:
+
+```sql
+USE helpdesk_db;
+SHOW TABLES;
+```
+
+Change app DB password:
+
+```sql
+ALTER USER 'helpdesk_app'@'localhost' IDENTIFIED BY 'new-strong-password';
+FLUSH PRIVILEGES;
+```
+
+After changing the password, update:
+
+```text
+/etc/helpdesk/helpdesk.env
+```
+
+Then restart:
+
+```bash
+sudo systemctl restart helpdesk
+sudo systemctl restart helpdesk-email-fetch
+```
+
+## 11. After Git Updates
 
 When pulling new code from Git:
 
