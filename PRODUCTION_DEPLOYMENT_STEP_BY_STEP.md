@@ -458,6 +458,27 @@ sudo systemctl restart helpdesk helpdesk-email-fetch
 
 ## Step 13.1. Date Wise Production Fix Commands
 
+### 2026-07-13 - Create Ticket Admin and Basic User Layout Fix
+
+Run this after pushing the latest Git changes from Windows:
+
+```bash
+cd /opt/helpdesk
+sudo git pull
+sudo /opt/helpdesk/venv/bin/pip install -r /opt/helpdesk/requirements.txt
+sudo -u www-data /opt/helpdesk/venv/bin/flask --app wsgi:app init-defaults
+sudo systemctl restart helpdesk helpdesk-email-fetch
+```
+
+This date-wise fix covers:
+
+- same modern Create Ticket page layout for admin and basic users
+- basic users locked to Self-Service source
+- admin users can still select Manual, Email, Phone, Walk-In, and Self-Service
+- Assignment Information shown consistently for both roles
+- basic users see read-only auto-assignment routing details
+- Asset Information labels and layout cleaned up
+
 ### 2026-07-13 - Ubuntu Env, Admin Department, MFA QR, Email Format, Upload Permission
 
 Run this after pulling the latest Git changes:
