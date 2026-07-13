@@ -74,7 +74,7 @@ echo
 echo "Installer completed."
 echo
 echo "Next required steps:"
-echo "1. Create MySQL database/user from DB_SETUP.md"
+echo "1. Create MySQL database/user from PRODUCTION_DEPLOYMENT_STEP_BY_STEP.md"
 echo "2. Edit env file: sudo nano ${ENV_FILE}"
 echo "3. Run: sudo -u ${APP_USER} ${APP_DIR}/venv/bin/flask --app wsgi:app init-defaults"
 echo "4. Run: sudo -u ${APP_USER} ${APP_DIR}/venv/bin/flask --app wsgi:app init-admin"
