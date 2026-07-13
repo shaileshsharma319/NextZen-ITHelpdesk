@@ -11,6 +11,7 @@ Use `.env.example` as the safe template for other users or deployments.
 3. Use a dedicated MySQL user, not `root`.
 4. Add real SMTP settings only on the machine that sends email.
 5. Keep `FLASK_DEBUG=False` for production.
+6. Do not expose a seed page publicly.
 
 ## Generate Secret Key
 
@@ -42,3 +43,21 @@ If `.env` is ever shared by mistake, immediately change:
 - `SECRET_KEY`
 - MySQL password
 - Email app password
+
+## First Production Setup
+
+Use command-line setup only. There is no public seed page.
+
+Create default departments:
+
+```powershell
+flask --app wsgi:app init-defaults
+```
+
+Create the first admin:
+
+```powershell
+flask --app wsgi:app init-admin
+```
+
+The admin account requires MFA setup on first login.

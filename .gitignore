@@ -5,6 +5,10 @@
 instance/
 app/static/uploads/
 exports/
+seed*.py
+*_seed.py
+demo*.py
+sample*.py
 *.log
 *.sqlite
 *.db

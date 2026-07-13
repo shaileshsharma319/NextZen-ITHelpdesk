@@ -95,7 +95,27 @@ sudo mkdir -p /opt/helpdesk/app/static/uploads
 sudo chown -R www-data:www-data /opt/helpdesk/app/static/uploads
 ```
 
-## 7. Install systemd Services
+## 7. Create Default Records
+
+This project does not need a public seed page. Use private server commands only.
+
+Create default departments:
+
+```bash
+cd /opt/helpdesk
+sudo -u www-data /opt/helpdesk/venv/bin/flask --app wsgi:app init-defaults
+```
+
+Create the first admin user:
+
+```bash
+cd /opt/helpdesk
+sudo -u www-data /opt/helpdesk/venv/bin/flask --app wsgi:app init-admin
+```
+
+The first admin will be required to set up MFA on first login.
+
+## 8. Install systemd Services
 
 ```bash
 sudo cp /opt/helpdesk/deploy/ubuntu/helpdesk.service /etc/systemd/system/helpdesk.service
@@ -114,7 +134,7 @@ sudo systemctl status helpdesk
 sudo systemctl status helpdesk-email-fetch
 ```
 
-## 8. Configure Nginx
+## 9. Configure Nginx
 
 Edit `deploy/ubuntu/nginx-helpdesk.conf` and change:
 
@@ -131,7 +151,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-## 9. Enable HTTPS
+## 10. Enable HTTPS
 
 After your domain DNS points to the server:
 

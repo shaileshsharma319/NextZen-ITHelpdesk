@@ -44,6 +44,9 @@ def create_app():
     app.register_blueprint(settings, url_prefix='/settings')
     app.register_blueprint(audit, url_prefix='/audit')
 
+    from app.cli import register_cli_commands
+    register_cli_commands(app)
+
     with app.app_context():
         from app.models import email_config, user_signature, audit as audit_models  # noqa: ensure tables created
         from app.utils.schema import ensure_helpdesk_schema
