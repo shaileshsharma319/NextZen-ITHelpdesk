@@ -189,6 +189,41 @@
                 placeholder="Brief, clear description of the issue...">
         </div>
 
+        <!-- Common Issue Presets -->
+        <div class="rounded-xl border border-blue-100 bg-blue-50/70 p-4">
+            <label class="form-label flex items-center gap-2">
+                <i class="fas fa-wand-magic-sparkles text-blue-500"></i>
+                Common Issue
+            </label>
+            <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-3 items-start">
+                <div>
+                    <select id="common_issue_select" class="form-input" onchange="applyCommonIssue(this.value)">
+                        <option value="">— Select ready issue template —</option>
+                        <option value="cannot_login">Cannot login / Account locked</option>
+                        <option value="slow_pc">Slow PC / Laptop hanging</option>
+                        <option value="no_internet">No Internet / Network not working</option>
+                        <option value="printer_issue">Printer not working</option>
+                        <option value="email_issue">Email / Outlook not working</option>
+                        <option value="vpn_issue">VPN not connecting</option>
+                        <option value="software_install">Software installation request</option>
+                        <option value="password_reset">Password reset request</option>
+                        <option value="keyboard_mouse">Keyboard / Mouse issue</option>
+                        <option value="access_request">Folder / Application access request</option>
+                        <option value="audio_meeting">Teams / Zoom audio issue</option>
+                        <option value="shared_folder">Shared folder not accessible</option>
+                        <option value="other_issue">Other IT issue</option>
+                    </select>
+                    <p class="text-xs text-blue-600 mt-1">
+                        Select one item to auto-fill subject, category, priority, tags, and description checklist.
+                    </p>
+                </div>
+                <button type="button" onclick="clearCommonIssue()"
+                    class="inline-flex items-center justify-center gap-2 text-sm text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 px-4 py-2.5 rounded-xl transition-colors">
+                    <i class="fas fa-rotate-left"></i> Clear
+                </button>
+            </div>
+        </div>
+
         <!-- Row: Category / Sub Category / Priority -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
@@ -219,7 +254,7 @@
 
         <div>
             <label class="form-label">Tags</label>
-            <input type="text" name="tags" class="form-input" placeholder="vpn, printer, password reset">
+            <input type="text" name="tags" id="tags_input" class="form-input" placeholder="vpn, printer, password reset">
             <p class="text-xs text-gray-400 mt-1">Comma separated labels for filtering and quick classification.</p>
         </div>
 
@@ -755,6 +790,150 @@ function rteUpdate() {
 function rteSetTemplate(text) {
     rteBody.focus();
     rteBody.innerHTML = text.replace(/\n/g, '<br>');
+    rteUpdate();
+}
+
+const COMMON_ISSUES = {
+    cannot_login: {
+        subject: 'Cannot login / Account locked',
+        category: 'Access & Permissions',
+        subCategory: 'Account Locked',
+        priority: 'medium',
+        tags: 'login, account locked, password',
+        description: 'Issue: User cannot login to the system.\n\nUser ID / Email: \nSystem / Application: \nError message shown: \nLast successful login: \nPassword changed recently: Yes / No\nUrgency / work impact: '
+    },
+    slow_pc: {
+        subject: 'PC / Laptop running slow',
+        category: 'Hardware',
+        subCategory: 'Desktop / Laptop',
+        priority: 'medium',
+        tags: 'slow pc, laptop, performance',
+        description: 'Issue: PC / Laptop is running very slow.\n\nAsset / Hostname: \nOperating System: \nRAM: \nLast restart date/time: \nApplications affected: \nAny error message: \nSince when issue started: '
+    },
+    no_internet: {
+        subject: 'No Internet / Network not working',
+        category: 'Network',
+        subCategory: 'No Connectivity',
+        priority: 'high',
+        tags: 'internet, network, connectivity',
+        description: 'Issue: Internet / network is not working.\n\nLocation / Floor: \nConnection type: LAN / Wi-Fi\nIP Address: \nOther users affected: Yes / No\nCan access internal sites: Yes / No\nRouter / switch reachable: Yes / No\nSince when issue started: '
+    },
+    printer_issue: {
+        subject: 'Printer not working',
+        category: 'Hardware',
+        subCategory: 'Printer',
+        priority: 'medium',
+        tags: 'printer, print, scanner',
+        description: 'Issue: Printer is not working.\n\nPrinter name / IP: \nUser system name: \nProblem type: Print / Scan / Paper jam / Offline\nError shown: \nLast working date/time: \nOther users affected: Yes / No'
+    },
+    email_issue: {
+        subject: 'Email / Outlook not working',
+        category: 'Email',
+        subCategory: 'Configuration',
+        priority: 'medium',
+        tags: 'email, outlook, mailbox',
+        description: 'Issue: Email / Outlook is not working.\n\nEmail ID: \nMail client: Outlook / Webmail / Mobile\nIssue type: Send / Receive / Login / Sync\nError message: \nInternet working: Yes / No\nSince when issue started: '
+    },
+    vpn_issue: {
+        subject: 'VPN not connecting',
+        category: 'Network',
+        subCategory: 'VPN',
+        priority: 'medium',
+        tags: 'vpn, remote access, network',
+        description: 'Issue: VPN is not connecting.\n\nUser ID: \nVPN client name: \nInternet working: Yes / No\nError message: \nLocation: Office / Home / Other\nLast working date/time: '
+    },
+    software_install: {
+        subject: 'Software installation request',
+        category: 'Software Installation',
+        subCategory: 'Other Software',
+        priority: 'low',
+        tags: 'software installation, application',
+        description: 'Request: Software installation required.\n\nSoftware name: \nVersion: \nBusiness reason: \nUser / System name: \nLicense available: Yes / No / Not sure\nRequired by date: '
+    },
+    password_reset: {
+        subject: 'Password reset request',
+        category: 'Access & Permissions',
+        subCategory: 'Password Reset',
+        priority: 'medium',
+        tags: 'password reset, account',
+        description: 'Request: Password reset required.\n\nUser ID / Email: \nSystem / Application: \nMobile number for verification: \nReason: Forgot password / Expired / Locked\nUrgency: '
+    },
+    keyboard_mouse: {
+        subject: 'Keyboard / Mouse issue',
+        category: 'Hardware',
+        subCategory: 'Keyboard / Mouse',
+        priority: 'low',
+        tags: 'keyboard, mouse, hardware',
+        description: 'Issue: Keyboard / Mouse is not working properly.\n\nDevice: Keyboard / Mouse\nConnection type: USB / Wireless / Bluetooth\nAsset / Hostname: \nProblem details: \nTried another port/device: Yes / No\nSince when issue started: '
+    },
+    access_request: {
+        subject: 'Folder / Application access request',
+        category: 'Access & Permissions',
+        subCategory: 'New Access Request',
+        priority: 'medium',
+        tags: 'access request, permission',
+        description: 'Request: Access / permission required.\n\nUser ID / Email: \nFolder / Application name: \nAccess type: Read / Write / Admin\nApprover / Manager: \nBusiness reason: \nRequired by date: '
+    },
+    audio_meeting: {
+        subject: 'Teams / Zoom audio issue',
+        category: 'Software',
+        subCategory: 'Application Error',
+        priority: 'medium',
+        tags: 'teams, zoom, audio, meeting',
+        description: 'Issue: Meeting audio / microphone / speaker is not working.\n\nApplication: Teams / Zoom / Other\nDevice: Laptop speaker / Headset / Bluetooth\nIssue type: Mic / Speaker / Camera\nError message: \nWorks in other apps: Yes / No\nMeeting urgency: '
+    },
+    shared_folder: {
+        subject: 'Shared folder not accessible',
+        category: 'Data & File Share',
+        subCategory: 'Shared Folder Access',
+        priority: 'medium',
+        tags: 'shared folder, access, network',
+        description: 'Issue: Shared folder is not accessible.\n\nFolder path: \nUser ID: \nAccess required: Read / Write\nError message: \nOther users affected: Yes / No\nApprover / Manager: '
+    },
+    other_issue: {
+        subject: 'IT support required',
+        category: 'Other',
+        subCategory: 'General Inquiry',
+        priority: 'medium',
+        tags: 'it support',
+        description: 'Issue / Request: \n\nAffected user: \nAsset / System name: \nLocation: \nError message: \nSince when issue started: \nBusiness impact: '
+    }
+};
+
+function setSelectValue(selectId, value) {
+    const select = document.getElementById(selectId);
+    if (!select || !value) return false;
+    const match = Array.from(select.options).find(option => option.value.toLowerCase() === value.toLowerCase());
+    if (!match) return false;
+    select.value = match.value;
+    return true;
+}
+
+function applyCommonIssue(key) {
+    const preset = COMMON_ISSUES[key];
+    if (!preset) return;
+
+    document.getElementById('title_input').value = preset.subject;
+    document.getElementById('tags_input').value = preset.tags;
+
+    if (setSelectValue('category_select', preset.category)) {
+        updateSubcategory();
+        setSelectValue('sub_category_select', preset.subCategory);
+        syncSoftwareFromSubcategory();
+    }
+
+    if (setSelectValue('priority_select', preset.priority)) {
+        onPriorityChange(document.getElementById('priority_select').value);
+    }
+
+    rteSetTemplate(preset.description);
+}
+
+function clearCommonIssue() {
+    document.getElementById('common_issue_select').value = '';
+    document.getElementById('title_input').value = '';
+    document.getElementById('tags_input').value = '';
+    rteBody.innerHTML = '';
     rteUpdate();
 }
 

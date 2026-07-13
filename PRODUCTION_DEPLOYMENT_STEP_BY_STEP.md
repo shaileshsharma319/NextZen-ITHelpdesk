@@ -462,6 +462,16 @@ sudo systemctl restart helpdesk helpdesk-email-fetch
 
 Run this after pushing the latest Git changes from Windows:
 
+Quick production update:
+
+```bash
+cd /opt/helpdesk
+sudo git pull
+sudo systemctl restart helpdesk helpdesk-email-fetch
+```
+
+Use the full update below only when dependencies/default data also changed:
+
 ```bash
 cd /opt/helpdesk
 sudo git pull
@@ -478,6 +488,7 @@ This date-wise fix covers:
 - Assignment Information shown consistently for both roles
 - basic users see read-only auto-assignment routing details
 - Asset Information labels and layout cleaned up
+- ready Common Issue dropdown for Cannot login, Slow PC, No Internet, Printer, Email, VPN, Software install, Password reset, and other daily IT requests
 
 ### 2026-07-13 - Ubuntu Env, Admin Department, MFA QR, Email Format, Upload Permission
 
