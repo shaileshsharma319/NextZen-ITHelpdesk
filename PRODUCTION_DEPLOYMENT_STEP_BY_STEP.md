@@ -479,6 +479,28 @@ This date-wise fix covers:
 - modern notification email format
 - upload folder permission fixes for email fetch attachments
 
+If the MFA page shows:
+
+```text
+QR code library is not installed.
+```
+
+Run:
+
+```bash
+cd /opt/helpdesk
+sudo /opt/helpdesk/venv/bin/pip install -r /opt/helpdesk/requirements.txt
+sudo systemctl restart helpdesk helpdesk-email-fetch
+```
+
+For local Windows testing:
+
+```powershell
+cd "D:\Python Projects\Ticket-Tool\IT-HelpDesk"
+pip install -r requirements.txt
+python run.py
+```
+
 ## Step 14. Common Errors
 
 Error:
